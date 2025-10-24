@@ -145,3 +145,9 @@ error_log
 *.example
 *.env.production.local
 *.env.development.local
+
+web/node_modules/
+node_modules/
+.next/
+dist/
+
