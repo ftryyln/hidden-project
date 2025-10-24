@@ -143,6 +143,7 @@ error_log
 *.backup
 *.sample
 *.example
+*.env.local
 *.env.production.local
 *.env.development.local
 
