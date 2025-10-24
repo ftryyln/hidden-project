@@ -1,0 +1,58 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { LayoutGrid, Users, Receipt, Gem, BarChart3 } from "lucide-react";
+
+interface DashboardNavProps {
+  guildId: string | null;
+}
+
+const linkConfig = [
+  { href: "/dashboard", label: "Overview", icon: LayoutGrid },
+  { href: "/guilds/[gid]/members", label: "Members", icon: Users },
+  { href: "/guilds/[gid]/transactions", label: "Transactions", icon: Receipt },
+  { href: "/guilds/[gid]/loot", label: "Loot", icon: Gem },
+  { href: "/guilds/[gid]/reports", label: "Reports", icon: BarChart3 },
+];
+
+export function DashboardNav({ guildId }: DashboardNavProps) {
+  const pathname = usePathname();
+
+  return (
+    <nav className="flex items-center gap-2">
+      {linkConfig.map(({ href, label, icon: Icon }) => {
+        const target = href.includes("[gid]")
+          ? guildId
+            ? href.replace("[gid]", guildId)
+            : href.replace("[gid]", "select")
+          : href;
+        const isActive =
+          pathname === target ||
+          (href.includes("[gid]") && guildId && pathname.startsWith(target));
+
+        return (
+          <Link
+            key={href}
+            href={target}
+            className={cn(
+              "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition hover:bg-muted/40",
+              isActive ? "bg-muted/50 text-foreground" : "text-muted-foreground",
+              !guildId && href.includes("[gid]") && "pointer-events-none opacity-60",
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+            {href.includes("[gid]") && !guildId && (
+              <Badge variant="outline" className="ml-1 text-[10px] uppercase">
+                select guild
+              </Badge>
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
