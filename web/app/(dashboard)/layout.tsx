@@ -7,9 +7,7 @@ import { Loader2 } from "lucide-react";
 import { GuildSwitcher } from "@/components/guild/guild-switcher";
 import { DashboardNav } from "@/components/navigation/dashboard-nav";
 import { UserMenu } from "@/components/navigation/user-menu";
-import { Button } from "@/components/ui/button";
-import { MoonStar, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const STORAGE_KEY = "guild-manager:selected-guild";
 
@@ -17,7 +15,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
 
   const guildFromPath = useMemo(() => {
@@ -73,13 +70,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-bold tracking-tight">Guild Manager</h1>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              >
-                {theme === "light" ? <MoonStar className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-              </Button>
+              <ThemeToggle />
             </div>
             <div className="flex items-center gap-3">
               <GuildSwitcher value={selectedGuild} onChange={handleGuildChange} />

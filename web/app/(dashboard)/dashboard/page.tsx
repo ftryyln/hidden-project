@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchDashboard } from "@/lib/services/guilds";
+import { fetchDashboard } from "@/lib/api/guilds";
 import { useGuilds } from "@/hooks/queries/use-guilds";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Users, Wallet, TrendingUp, TrendingDown } from "lucide-react";
+import { toApiError } from "@/lib/api/errors";
 
 const STORAGE_KEY = "guild-manager:selected-guild";
 
@@ -32,6 +33,12 @@ export default function DashboardPage() {
     }
   }, [guildId, guildsQuery.data]);
 
+  useEffect(() => {
+    if (guildId && typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, guildId);
+    }
+  }, [guildId]);
+
   const dashboardQuery = useQuery({
     queryKey: ["dashboard", guildId],
     queryFn: () => fetchDashboard(guildId),
@@ -40,16 +47,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (dashboardQuery.isError) {
-      toast({
-        title: "Failed to load dashboard",
-        description: dashboardQuery.error?.message ?? "An unexpected error occurred.",
-      });
+      void (async () => {
+        const error = await toApiError(dashboardQuery.error);
+        toast({
+          title: "Failed to load dashboard",
+          description: error.message,
+        });
+      })();
     }
   }, [dashboardQuery.isError, dashboardQuery.error, toast]);
 
   const guildName = useMemo(() => {
     const guild = guildsQuery.data?.find((g) => g.id === guildId);
-    return guild ? `${guild.name} • ${guild.role}` : "Guild overview";
+    return guild ? `${guild.name} - ${guild.role}` : "Guild overview";
   }, [guildsQuery.data, guildId]);
 
   if (!guildId) {
@@ -150,8 +160,8 @@ export default function DashboardPage() {
       <section className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Transaksi Terbaru</CardTitle>
-            <CardDescription>Draft dan transaksi yang baru dikonfirmasi</CardDescription>
+            <CardTitle>Latest Transaction</CardTitle>
+            <CardDescription>Draft and newly confirmed transactions</CardDescription>
           </CardHeader>
           <CardContent>
             {dashboardQuery.isLoading ? (

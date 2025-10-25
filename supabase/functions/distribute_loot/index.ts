@@ -90,7 +90,7 @@ serve(async (req) => {
     supabaseAdmin,
     auth.user.id,
     loot.guild_id,
-    ["guild_admin", "officer"],
+    ["guild_admin", "officer", "raider"],
   );
   if (roleCheck instanceof Response) {
     return roleCheck;

@@ -15,27 +15,42 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DateRangePicker, type DateRange } from "@/components/forms/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MonthlyAreaChart } from "@/components/charts/monthly-area-chart";
-import { fetchReports, exportCsv } from "@/lib/services/reports";
+import { fetchReports, exportReportsCsv } from "@/lib/api/reports";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/components/ui/use-toast";
 import { Download } from "lucide-react";
+import { toApiError } from "@/lib/api/errors";
+import { useAuth } from "@/hooks/use-auth";
+import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
 
 export default function ReportsPage() {
   const params = useParams<{ gid: string }>();
   const guildId = params.gid;
   const toast = useToast();
 
+  const { user } = useAuth();
+  const guildRole = deriveGuildRole(user ?? null, guildId);
+  const permissions = getGuildPermissions(guildRole);
+
   const [period, setPeriod] = useState<DateRange>({});
   const [resource, setResource] = useState<"transactions" | "members">("transactions");
 
   const reportsQuery = useQuery({
     queryKey: ["guild", guildId, "reports", period],
-    queryFn: () => fetchReports(guildId, period),
+    queryFn: () =>
+      fetchReports(guildId, {
+        from: period.from ? period.from.toISOString() : undefined,
+        to: period.to ? period.to.toISOString() : undefined,
+      }),
     enabled: Boolean(guildId),
   });
 
   const exportMutation = useMutation({
-    mutationFn: () => exportCsv(guildId, resource, period),
+    mutationFn: async () =>
+      exportReportsCsv(guildId, resource, {
+        from: period.from ? period.from.toISOString() : undefined,
+        to: period.to ? period.to.toISOString() : undefined,
+      }),
     onSuccess: (data) => {
       const blob = new Blob([data], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -51,10 +66,11 @@ export default function ReportsPage() {
         description: "CSV file is ready to download.",
       });
     },
-    onError: (error) => {
+    onError: async (error) => {
+      const apiError = await toApiError(error);
       toast({
         title: "Export failed",
-        description: error.message,
+        description: apiError.message,
       });
     },
   });
@@ -80,8 +96,18 @@ export default function ReportsPage() {
           </Select>
           <Button
             className="rounded-full"
-            onClick={() => exportMutation.mutate()}
-            disabled={exportMutation.isPending}
+            onClick={() => {
+              if (!permissions.canExportReports) {
+                return;
+              }
+              exportMutation.mutate();
+            }}
+            disabled={exportMutation.isPending || !permissions.canExportReports}
+            title={
+              !permissions.canExportReports
+                ? "Only officers or guild admins can export reports"
+                : undefined
+            }
           >
             <Download className="mr-2 h-4 w-4" />
             Export CSV

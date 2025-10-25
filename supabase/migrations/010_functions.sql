@@ -8,8 +8,9 @@ language sql
 immutable
 as $func$
   select case role_in
-    when 'guild_admin' then 400
-    when 'officer'     then 300
+    when 'guild_admin' then 500
+    when 'officer'     then 400
+    when 'raider'      then 300
     when 'member'      then 200
     when 'viewer'      then 100
   end;

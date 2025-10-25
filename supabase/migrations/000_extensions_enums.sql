@@ -8,7 +8,7 @@ create extension if not exists "http";
 -- Enums
 create type public.tx_type as enum ('income', 'expense', 'transfer');
 
-create type public.user_role as enum ('guild_admin', 'officer', 'member', 'viewer');
+create type public.user_role as enum ('guild_admin', 'officer', 'raider', 'member', 'viewer');
 
 create type public.guild_role as enum ('leader', 'officer', 'raider', 'casual');
 

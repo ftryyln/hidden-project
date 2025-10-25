@@ -3,16 +3,43 @@
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
+import type { ToastVariant } from "./use-toast";
 
 interface ToastProps {
   id: string;
   title?: ReactNode;
   description?: ReactNode;
   duration?: number;
+  variant?: ToastVariant;
   onClose: (id: string) => void;
 }
 
-export function Toast({ id, title, description, duration = 4000, onClose }: ToastProps) {
+const variantStyles: Record<ToastVariant, string> = {
+  default: "border-border/60 bg-card/95 text-foreground",
+  success: "border-emerald-500/50 bg-emerald-500/10 text-emerald-50",
+  destructive: "border-destructive/60 bg-destructive/10 text-destructive-foreground",
+};
+
+const titleStyles: Record<ToastVariant, string> = {
+  default: "text-foreground",
+  success: "text-emerald-50",
+  destructive: "text-destructive-foreground",
+};
+
+const descriptionStyles: Record<ToastVariant, string> = {
+  default: "text-muted-foreground",
+  success: "text-emerald-100/80",
+  destructive: "text-destructive-foreground/90",
+};
+
+export function Toast({
+  id,
+  title,
+  description,
+  duration = 4000,
+  variant = "default",
+  onClose,
+}: ToastProps) {
   useEffect(() => {
     const timeout = setTimeout(() => onClose(id), duration);
     return () => clearTimeout(timeout);
@@ -21,7 +48,8 @@ export function Toast({ id, title, description, duration = 4000, onClose }: Toas
   return (
     <div
       className={cn(
-        "relative flex w-full min-w-[280px] max-w-sm flex-col gap-1 rounded-2xl border border-border/60 bg-card/95 p-4 text-sm shadow-lg backdrop-blur transition-all duration-200",
+        "relative flex w-full min-w-[280px] max-w-sm flex-col gap-1 rounded-2xl border p-4 text-sm shadow-lg backdrop-blur transition-all duration-200",
+        variantStyles[variant],
       )}
     >
       <button
@@ -30,8 +58,10 @@ export function Toast({ id, title, description, duration = 4000, onClose }: Toas
       >
         <X className="h-4 w-4" />
       </button>
-      {title && <p className="font-semibold text-foreground">{title}</p>}
-      {description && <p className="text-muted-foreground">{description}</p>}
+      {title && <p className={cn("font-semibold", titleStyles[variant])}>{title}</p>}
+      {description && (
+        <p className={cn("text-sm leading-snug", descriptionStyles[variant])}>{description}</p>
+      )}
     </div>
   );
 }

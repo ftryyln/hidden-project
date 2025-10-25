@@ -4,12 +4,15 @@ import * as React from "react";
 
 export type ToastActionElement = React.ReactElement<any, string | React.JSXElementConstructor<any>>;
 
+export type ToastVariant = "default" | "success" | "destructive";
+
 export interface Toast {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
   duration?: number;
+  variant?: ToastVariant;
 }
 
 type ToasterToast = Toast;

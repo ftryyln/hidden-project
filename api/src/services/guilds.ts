@@ -1,51 +1,52 @@
-import { supabase } from "@/lib/supabase-client";
+import { ApiError } from "../errors.js";
+import { supabaseAdmin } from "../supabase.js";
 import type {
-  AuditLog,
-  DashboardKpis,
+  DashboardResponse,
   GuildSummary,
-  LootRecord,
   MonthlySummaryPoint,
   Transaction,
-} from "@/lib/types";
-
-export interface DashboardResponse {
-  guilds: GuildSummary[];
-  kpis: DashboardKpis;
-  recentTransactions: Transaction[];
-  recentLoot: LootRecord[];
-  monthlySeries: MonthlySummaryPoint[];
-  audit?: AuditLog[];
-  activeGuildId?: string;
-}
+  LootRecord,
+  AuditLog,
+} from "../types.js";
 
 async function getGuildMemberCount(guildId: string): Promise<number> {
-  const { count } = await supabase
+  const { count, error } = await supabaseAdmin
     .from("members")
     .select("id", { count: "exact", head: true })
     .eq("guild_id", guildId)
     .eq("is_active", true);
+
+  if (error) {
+    console.error("Failed to count active members", error);
+    throw new ApiError(500, "Unable to load guild members");
+  }
+
   return count ?? 0;
 }
 
 async function getGuildBalance(guildId: string): Promise<number> {
-  const { data, error } = await supabase.rpc("guild_current_balance", {
+  const { data, error } = await supabaseAdmin.rpc("guild_current_balance", {
     p_guild_id: guildId,
   });
+
   if (error) {
-    console.warn("Failed to fetch guild balance", error);
-    return 0;
+    console.error("Failed to load guild balance", error);
+    throw new ApiError(500, "Unable to load guild balance");
   }
+
   return Number(data ?? 0);
 }
 
-export async function fetchGuilds(): Promise<GuildSummary[]> {
-  const { data, error } = await supabase
+export async function fetchGuildSummaries(userId: string): Promise<GuildSummary[]> {
+  const { data, error } = await supabaseAdmin
     .from("guild_user_roles")
     .select("guild_id, role, guild:guild_id ( id, name, tag )")
+    .eq("user_id", userId)
     .order("created_at", { ascending: true });
 
   if (error) {
-    throw error;
+    console.error("Failed to load guild memberships", error);
+    throw new ApiError(500, "Unable to load guilds");
   }
 
   if (!data) {
@@ -53,10 +54,13 @@ export async function fetchGuilds(): Promise<GuildSummary[]> {
   }
 
   const enriched = await Promise.all(
-    data.map(async (row) => {
+    data.map(async (row): Promise<GuildSummary> => {
       const guildInfo = Array.isArray(row.guild) ? row.guild?.[0] : row.guild;
-      const memberCount = await getGuildMemberCount(row.guild_id);
-      const balance = await getGuildBalance(row.guild_id);
+      const [memberCount, balance] = await Promise.all([
+        getGuildMemberCount(row.guild_id),
+        getGuildBalance(row.guild_id),
+      ]);
+
       return {
         id: row.guild_id,
         name: guildInfo?.name ?? "Unknown Guild",
@@ -64,15 +68,18 @@ export async function fetchGuilds(): Promise<GuildSummary[]> {
         balance,
         member_count: memberCount,
         role: row.role,
-      } as GuildSummary;
+      };
     }),
   );
 
   return enriched;
 }
 
-export async function fetchDashboard(guildId?: string): Promise<DashboardResponse> {
-  const guilds = await fetchGuilds();
+export async function fetchDashboard(
+  userId: string,
+  guildId?: string,
+): Promise<DashboardResponse> {
+  const guilds = await fetchGuildSummaries(userId);
   const activeGuildId = guildId ?? guilds[0]?.id;
 
   if (!activeGuildId) {
@@ -106,20 +113,20 @@ export async function fetchDashboard(guildId?: string): Promise<DashboardRespons
   ] = await Promise.all([
     getGuildMemberCount(activeGuildId),
     getGuildBalance(activeGuildId),
-    supabase
+    supabaseAdmin
       .from("transactions")
       .select("tx_type, amount")
       .eq("guild_id", activeGuildId)
       .eq("confirmed", true)
       .gte("created_at", startOfMonth.toISOString())
       .lte("created_at", endOfMonth.toISOString()),
-    supabase
+    supabaseAdmin
       .from("vw_monthly_summary")
       .select("year, month, income_total, expense_total")
       .eq("guild_id", activeGuildId)
       .order("year", { ascending: true })
       .order("month", { ascending: true }),
-    supabase
+    supabaseAdmin
       .from("transactions")
       .select(
         "id, guild_id, created_at, tx_type, category, amount, description, confirmed, confirmed_at, created_by, evidence_path, profiles:profiles!transactions_created_by_fkey(display_name,email)",
@@ -127,13 +134,15 @@ export async function fetchDashboard(guildId?: string): Promise<DashboardRespons
       .eq("guild_id", activeGuildId)
       .order("created_at", { ascending: false })
       .limit(8),
-    supabase
+    supabaseAdmin
       .from("loot_records")
-      .select("id, guild_id, created_at, boss_name, item_name, item_rarity, estimated_value, distributed, distributed_at, notes")
+      .select(
+        "id, guild_id, created_at, boss_name, item_name, item_rarity, estimated_value, distributed, distributed_at, notes",
+      )
       .eq("guild_id", activeGuildId)
       .order("created_at", { ascending: false })
       .limit(8),
-    supabase
+    supabaseAdmin
       .from("audit_logs")
       .select(
         "id, guild_id, user_id, action, payload, created_at, profiles:profiles!audit_logs_user_id_fkey(display_name,email)",
@@ -143,12 +152,35 @@ export async function fetchDashboard(guildId?: string): Promise<DashboardRespons
       .limit(10),
   ]);
 
+  if (transactionsThisMonth.error) {
+    console.error("Failed to load transactions for dashboard", transactionsThisMonth.error);
+    throw new ApiError(500, "Unable to load dashboard transactions");
+  }
+  if (monthlySummary.error) {
+    console.error("Failed to load monthly summary", monthlySummary.error);
+    throw new ApiError(500, "Unable to load dashboard charts");
+  }
+  if (recentTransactions.error) {
+    console.error("Failed to load recent transactions", recentTransactions.error);
+    throw new ApiError(500, "Unable to load recent transactions");
+  }
+  if (recentLoot.error) {
+    console.error("Failed to load recent loot", recentLoot.error);
+    throw new ApiError(500, "Unable to load recent loot");
+  }
+  if (auditLogs.error) {
+    console.error("Failed to load audit logs", auditLogs.error);
+    throw new ApiError(500, "Unable to load audit history");
+  }
+
   const kpis = {
     active_members: memberCount,
     guild_balance: guildBalance,
     income_month:
-      transactionsThisMonth.data?.reduce((sum, tx) => (tx.tx_type === "income" ? sum + Number(tx.amount ?? 0) : sum), 0) ??
-      0,
+      transactionsThisMonth.data?.reduce(
+        (sum, tx) => (tx.tx_type === "income" ? sum + Number(tx.amount ?? 0) : sum),
+        0,
+      ) ?? 0,
     expense_month:
       transactionsThisMonth.data?.reduce(
         (sum, tx) => (tx.tx_type === "expense" ? sum + Number(tx.amount ?? 0) : sum),
@@ -156,7 +188,7 @@ export async function fetchDashboard(guildId?: string): Promise<DashboardRespons
       ) ?? 0,
   };
 
-  const monthlySeries =
+  const monthlySeries: MonthlySummaryPoint[] =
     monthlySummary.data?.map((row) => ({
       month: `${row.year}-${String(row.month).padStart(2, "0")}`,
       income: Number(row.income_total ?? 0),
@@ -201,12 +233,10 @@ export async function fetchDashboard(guildId?: string): Promise<DashboardRespons
       const profile = Array.isArray(log.profiles) ? log.profiles?.[0] : log.profiles;
       return {
         id: log.id,
-        guild_id: log.guild_id,
-        user_id: log.user_id ?? undefined,
         action: log.action,
-        payload: log.payload ?? {},
-        created_at: log.created_at,
+        payload: (log.payload as Record<string, unknown>) ?? {},
         user_name: profile?.display_name ?? profile?.email,
+        created_at: log.created_at,
       };
     }) ?? [];
 

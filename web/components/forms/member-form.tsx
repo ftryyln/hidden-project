@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -33,6 +33,7 @@ interface MemberFormProps {
   loading?: boolean;
   submitLabel?: string;
   onSubmit: (values: MemberSchema) => Promise<void> | void;
+  onCancel?: () => void;
 }
 
 export function MemberForm({
@@ -40,6 +41,7 @@ export function MemberForm({
   loading,
   submitLabel = "Save",
   onSubmit,
+  onCancel,
 }: MemberFormProps) {
   const form = useForm<MemberSchema>({
     resolver: zodResolver(memberSchema),
@@ -112,9 +114,22 @@ export function MemberForm({
           onCheckedChange={(checked) => form.setValue("is_active", checked, { shouldDirty: true })}
         />
       </div>
-      <Button type="submit" disabled={loading} className="w-full">
-        {loading ? "Saving…" : submitLabel}
-      </Button>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {onCancel ? (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading}
+            onClick={onCancel}
+            className="w-full"
+          >
+            Cancel
+          </Button>
+        ) : null}
+        <Button type="submit" disabled={loading} className="w-full">
+          {loading ? "Saving..." : submitLabel}
+        </Button>
+      </div>
     </form>
   );
 }

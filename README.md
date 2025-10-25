@@ -50,6 +50,45 @@ NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
 
 If you expose additional environment variables (e.g. Supabase service keys) place them in `supabase/.env` for Edge functions and load via `--env-file`.
 
+## Node.js REST API (`api/`)
+An Express + TypeScript REST layer now mirrors the Supabase flows consumed by the dashboard. It authenticates requests with Supabase access tokens and proxies all data operations through the service-role client.
+
+### Configure
+Create `api/.env` with your Supabase credentials:
+```bash
+SUPABASE_URL=https://<your-project>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+PORT=8080 # optional
+API_PREFIX=/api/v1 # optional
+```
+
+### Run locally
+```bash
+cd api
+npm install
+npm run dev
+```
+
+### Available endpoints
+- `GET  /api/v1/health`
+- `GET  /api/v1/auth/me`
+- `GET  /api/v1/guilds`
+- `GET  /api/v1/dashboard?guildId=<uuid>`
+- `GET  /api/v1/guilds/:guildId/members`
+- `POST /api/v1/guilds/:guildId/members`
+- `PUT  /api/v1/guilds/:guildId/members/:memberId`
+- `PATCH /api/v1/guilds/:guildId/members/:memberId/status`
+- `GET  /api/v1/guilds/:guildId/transactions`
+- `POST /api/v1/guilds/:guildId/transactions`
+- `POST /api/v1/guilds/:guildId/transactions/:transactionId/confirm`
+- `GET  /api/v1/guilds/:guildId/loot`
+- `POST /api/v1/guilds/:guildId/loot`
+- `POST /api/v1/guilds/:guildId/loot/:lootId/distribute`
+- `GET  /api/v1/guilds/:guildId/reports`
+- `POST /api/v1/guilds/:guildId/reports/export`
+
+All routes require a Supabase access token via `Authorization: Bearer <token>`. Role checks are enforced to match the original Edge Functions.
+
 ## Next.js Dashboard (`web/`)
 ```bash
 cd web

@@ -50,8 +50,8 @@ export async function requireGuildRole(
   client: SupabaseClient,
   userId: string,
   guildId: string,
-  allowedRoles: Array<"guild_admin" | "officer" | "member" | "viewer">,
-): Promise<{ role: "guild_admin" | "officer" | "member" | "viewer" } | Response> {
+  allowedRoles: Array<"guild_admin" | "officer" | "raider" | "member" | "viewer">,
+): Promise<{ role: "guild_admin" | "officer" | "raider" | "member" | "viewer" } | Response> {
   const { data, error } = await client
     .from("guild_user_roles")
     .select("role")

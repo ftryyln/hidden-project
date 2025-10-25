@@ -1,7 +1,28 @@
-export type GuildRole = "guild_admin" | "officer" | "member" | "viewer";
+export type GuildRole = "guild_admin" | "officer" | "raider" | "member" | "viewer";
 export type MemberRole = "leader" | "officer" | "raider" | "casual";
 export type TransactionType = "income" | "expense" | "transfer";
 export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic";
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  display_name: string;
+  app_role: GuildRole | null;
+}
+
+export interface GuildRoleAssignment {
+  guild_id: string;
+  user_id: string;
+  role: GuildRole;
+  user?: {
+    email?: string;
+    display_name?: string;
+  };
+}
+
+export interface AuthProfile extends AuthUser {
+  guild_roles?: GuildRoleAssignment[];
+}
 
 export interface GuildSummary {
   id: string;
@@ -79,4 +100,41 @@ export interface AuditLog {
   payload: Record<string, unknown>;
   user_name?: string;
   created_at: string;
+}
+
+export interface DashboardResponse {
+  guilds: GuildSummary[];
+  activeGuildId?: string;
+  kpis: DashboardKpis;
+  recentTransactions: Transaction[];
+  recentLoot: LootRecord[];
+  monthlySeries: MonthlySummaryPoint[];
+  audit?: AuditLog[];
+}
+
+export interface ReportsResponse {
+  totals: {
+    income: number;
+    expense: number;
+  };
+  series: MonthlySummaryPoint[];
+}
+
+export interface PaginatedResponse<T> {
+  total: number;
+  data: T[];
+}
+
+export interface ApiErrorResponse {
+  message: string;
+  errors?: Record<string, string | string[]>;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  expires_at: number | null;
+  token_type: string;
+  user: AuthUser;
 }

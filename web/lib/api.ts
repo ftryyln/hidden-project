@@ -1,85 +1,115 @@
-import axios, { AxiosError } from "axios";
+import axios, { type AxiosError, type AxiosRequestConfig } from "axios";
+import { env } from "./env";
+import { getAccessToken, getRefreshToken } from "./auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-const STORAGE_KEY = "guild-manager:token";
+interface RetryableRequestConfig extends AxiosRequestConfig {
+  _retry?: boolean;
+}
 
-let accessToken: string | null =
-  typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
-let unauthorizedHandler: (() => void) | null = null;
-
-export const api = axios.create({
-  baseURL: API_URL,
+const api = axios.create({
+  baseURL: env.public.NEXT_PUBLIC_API_URL,
   withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
-  if (accessToken) {
+  const token = getAccessToken();
+  if (token) {
     config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${accessToken}`;
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
+let isRefreshing = false;
+const pendingRequests: Array<{
+  resolve: (value: unknown) => void;
+  reject: (reason?: unknown) => void;
+  config: RetryableRequestConfig;
+}> = [];
+
+const unauthorizedHandlers = new Set<() => void>();
+
+function notifyUnauthorized() {
+  unauthorizedHandlers.forEach((handler) => {
+    try {
+      handler();
+    } catch {
+      // ignore handler failure
+    }
+  });
+}
+
+async function triggerRefresh(): Promise<void> {
+  if (typeof window === "undefined") {
+    throw new Error("Unable to refresh session on server-side render.");
+  }
+  const response = await fetch("/api/auth/refresh", {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Session refresh failed");
+  }
+  // cookies are rotated server-side; no body required
+  await response.text().catch(() => undefined);
+}
+
+function processQueue(error?: unknown) {
+  pendingRequests.splice(0).forEach(({ resolve, reject, config }) => {
+    if (error) {
+      reject(error);
+      return;
+    }
+    resolve(api(config));
+  });
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    if (
-      error.response?.status === 401 &&
-      typeof window !== "undefined" &&
-      unauthorizedHandler
-    ) {
-      unauthorizedHandler();
+  async (error: AxiosError) => {
+    const { response, config } = error;
+    const originalConfig = (config ?? {}) as RetryableRequestConfig;
+
+    if (!response || response.status !== 401 || originalConfig._retry) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      notifyUnauthorized();
+      return Promise.reject(error);
+    }
+
+    if (typeof window === "undefined") {
+      return Promise.reject(error);
+    }
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        pendingRequests.push({ resolve, reject, config: originalConfig });
+      });
+    }
+
+    originalConfig._retry = true;
+    isRefreshing = true;
+
+    try {
+      await triggerRefresh();
+      processQueue();
+      return api(originalConfig);
+    } catch (refreshError) {
+      processQueue(refreshError);
+      notifyUnauthorized();
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
   },
 );
 
-export function setAccessToken(token: string | null) {
-  accessToken = token;
-  if (typeof window !== "undefined") {
-    if (token) {
-      window.localStorage.setItem(STORAGE_KEY, token);
-    } else {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-  }
+export function onUnauthorized(handler: () => void): () => void {
+  unauthorizedHandlers.add(handler);
+  return () => unauthorizedHandlers.delete(handler);
 }
 
-export function getStoredToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(STORAGE_KEY);
-}
-
-export function onUnauthorized(handler: () => void) {
-  unauthorizedHandler = handler;
-}
-
-export interface ApiError {
-  message: string;
-  errors?: Record<string, string>;
-}
-
-export function toApiError(error: unknown): ApiError {
-  if (
-    error &&
-    typeof error === "object" &&
-    "message" in error &&
-    typeof (error as Record<string, unknown>).message === "string"
-  ) {
-    return error as ApiError;
-  }
-  if (axios.isAxiosError(error)) {
-    const data = (error.response?.data ?? {}) as Record<string, unknown>;
-    return {
-      message:
-        (typeof data.message === "string" && data.message) ||
-        error.message ||
-        "Unexpected error",
-      errors: data.errors as Record<string, string> | undefined,
-    };
-  }
-  if (error instanceof Error) {
-    return { message: error.message };
-  }
-  return { message: "Unexpected error" };
-}
+export { api };

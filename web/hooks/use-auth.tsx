@@ -9,27 +9,22 @@ import {
   useMemo,
   useState,
 } from "react";
-import { onUnauthorized, setAccessToken } from "@/lib/api";
-import { useRouter, usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabase-client";
-import type { Session } from "@supabase/supabase-js";
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  display_name: string;
-  role?: "guild_admin" | "officer" | "member" | "viewer";
-}
+import { usePathname, useRouter } from "next/navigation";
+import { login as loginRequest, logout as logoutRequest, fetchCurrentProfile } from "@/lib/api/auth";
+import { onUnauthorized } from "@/lib/api";
+import type { AuthProfile } from "@/lib/types";
+import { toApiError, ApiClientError } from "@/lib/api/errors";
 
 interface LoginDto {
   email: string;
   password: string;
 }
 
-export interface AuthContextValue {
-  status: "loading" | "authenticated" | "unauthenticated";
-  user: AuthUser | null;
-  token: string | null;
+type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+
+interface AuthContextValue {
+  status: AuthStatus;
+  user: AuthProfile | null;
   login: (dto: LoginDto) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -37,140 +32,139 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+async function loadProfile(): Promise<AuthProfile | null> {
+  try {
+    const profile = await fetchCurrentProfile();
+    return profile;
+  } catch (error) {
+    const apiError = await toApiError(error);
+    if (apiError.status === 401) {
+      return null;
+    }
+    throw apiError;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [status, setStatus] = useState<AuthContextValue["status"]>("loading");
+  const [status, setStatus] = useState<AuthStatus>("loading");
+  const [user, setUser] = useState<AuthProfile | null>(null);
 
-  const signOut = useCallback(() => {
-    setToken(null);
-    setUser(null);
-    setStatus("unauthenticated");
-    setAccessToken(null);
-    if (pathname?.startsWith("/dashboard") || pathname?.startsWith("/guilds")) {
-      router.replace("/login");
-    }
-  }, [pathname, router]);
-
-  const applySession = useCallback(
-    async (session: Session | null) => {
-      if (!session) {
-        signOut();
-        return;
-      }
-
-      try {
-        setStatus("loading");
-        setAccessToken(session.access_token);
-        setToken(session.access_token);
-
-        const { data: profile, error } = await supabase
-          .from("profiles")
-          .select("id, email, display_name")
-          .eq("id", session.user.id)
-          .maybeSingle();
-
-        if (error) {
-          console.warn("Failed to load profile from database, falling back to auth metadata.", error);
-        }
-
-        const resolvedProfile = profile ?? {
-          id: session.user.id,
-          email: session.user.email ?? "",
-          display_name:
-            (session.user.user_metadata as Record<string, string> | undefined)?.display_name ??
-            session.user.email ??
-            "",
-        };
-
-        setUser({
-          id: resolvedProfile.id,
-          email: resolvedProfile.email ?? session.user.email ?? "",
-          display_name:
-            resolvedProfile.display_name ?? session.user.email ?? resolvedProfile.email ?? "",
-          role: (session.user.app_metadata?.role as AuthUser["role"]) ?? undefined,
-        });
-        setStatus("authenticated");
-      } catch (error) {
-        console.error("Failed to apply session", error);
-        setAccessToken(null);
-        setToken(null);
-        setUser(null);
-        setStatus("unauthenticated");
-        if (pathname !== "/login") {
-          router.replace("/login");
-        }
-      }
-    },
-    [pathname, router, signOut],
+  const publicRoutes = useMemo(
+    () => new Set(["/login", "/register", "/forgot-password", "/reset-password"]),
+    [],
   );
 
-  const loadProfile = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    await applySession(data.session ?? null);
-  }, [applySession]);
+  const isPublicRoute = useCallback(
+    (path: string | null) => {
+      if (!path) return true;
+      for (const route of publicRoutes) {
+        if (path === route || path.startsWith(`${route}/`)) {
+          return true;
+        }
+      }
+      return false;
+    },
+    [publicRoutes],
+  );
+
+  const handleUnauthorized = useCallback(() => {
+    setUser(null);
+    setStatus("unauthenticated");
+    if (!isPublicRoute(pathname)) {
+      router.replace("/login");
+    }
+  }, [pathname, router, isPublicRoute]);
+
+  const bootstrap = useCallback(async () => {
+    setStatus("loading");
+    try {
+      const profile = await loadProfile();
+      if (!profile) {
+        setUser(null);
+        setStatus("unauthenticated");
+        return;
+      }
+      setUser(profile);
+      setStatus("authenticated");
+    } catch (error) {
+      console.error("Failed to bootstrap session", error);
+      setUser(null);
+      setStatus("unauthenticated");
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onUnauthorized(() => {
+      handleUnauthorized();
+    });
+    return unsubscribe;
+  }, [handleUnauthorized]);
+
+  useEffect(() => {
+    bootstrap().catch(() => {
+      setStatus("unauthenticated");
+    });
+  }, [bootstrap]);
 
   const login = useCallback(
     async (dto: LoginDto) => {
-      const { data, error } = await supabase.auth.signInWithPassword(dto);
-      if (error || !data.session) {
+      setStatus("loading");
+      try {
+        await loginRequest(dto);
+        const profile = await loadProfile();
+        if (!profile) {
+          throw new ApiClientError(401, "Invalid session");
+        }
+        setUser(profile);
+        setStatus("authenticated");
+        router.replace("/dashboard");
+      } catch (error) {
+        const apiError = await toApiError(error);
+        setUser(null);
         setStatus("unauthenticated");
-        throw { message: error?.message ?? "Unable to sign in with provided credentials." };
+        throw apiError;
       }
-      await applySession(data.session);
-      router.replace("/dashboard");
     },
-    [applySession, router],
+    [router],
   );
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
-    signOut();
-  }, [signOut]);
+    try {
+      await logoutRequest();
+    } catch (error) {
+      console.error("Failed to logout", error);
+    } finally {
+      handleUnauthorized();
+    }
+  }, [handleUnauthorized]);
 
   const refreshProfile = useCallback(async () => {
-    await loadProfile();
-  }, [loadProfile]);
-
-  useEffect(() => {
-    onUnauthorized(() => {
-      void signOut();
-    });
-  }, [signOut]);
-
-  useEffect(() => {
-    loadProfile().catch(() => {
-      setStatus("unauthenticated");
-    });
-  }, [loadProfile]);
-
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      void applySession(session);
-    });
-    return () => subscription.unsubscribe();
-  }, [applySession]);
+    const profile = await loadProfile();
+    if (!profile) {
+      handleUnauthorized();
+      return;
+    }
+    setUser(profile);
+    setStatus("authenticated");
+  }, [handleUnauthorized]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       status,
       user,
-      token,
       login,
       logout,
       refreshProfile,
     }),
-    [status, user, token, login, logout, refreshProfile],
+    [status, user, login, logout, refreshProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within AuthProvider");

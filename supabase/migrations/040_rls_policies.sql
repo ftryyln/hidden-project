@@ -60,13 +60,13 @@ create policy guild_user_roles_select on public.guild_user_roles for
 select
     using (
         auth.uid() = user_id
-        or public.user_has_min_role(guild_id, 'guild_admin')
+        or public.user_has_min_role(guild_id, 'officer')
     );
 
 create policy guild_user_roles_manage on public.guild_user_roles for all using (
-    public.user_has_min_role(guild_id, 'guild_admin')
+    public.user_has_min_role(guild_id, 'officer')
 ) with check (
-    public.user_has_min_role(guild_id, 'guild_admin')
+    public.user_has_min_role(guild_id, 'officer')
 );
 
 -- Members
@@ -94,7 +94,7 @@ insert
     with check (
         public.user_has_any_role(
             guild_id,
-            array ['guild_admin','officer','member']
+            array ['guild_admin','officer']
         )
     );
 
@@ -103,14 +103,14 @@ update
     using (
         public.user_has_any_role(
             guild_id,
-            array ['guild_admin','officer','member']
+            array ['guild_admin','officer']
         )
         and auth.uid() = created_by
         and confirmed = false
     ) with check (
         public.user_has_any_role(
             guild_id,
-            array ['guild_admin','officer','member']
+            array ['guild_admin','officer']
         )
         and auth.uid() = created_by
         and confirmed = false
@@ -127,7 +127,7 @@ update
     );
 
 create policy transactions_delete on public.transactions for delete using (
-    public.user_has_min_role(guild_id, 'guild_admin')
+    public.user_has_min_role(guild_id, 'officer')
 );
 
 -- Loot records
@@ -135,7 +135,7 @@ create policy loot_records_select on public.loot_records for
 select
     using (public.user_in_guild(guild_id));
 
-create policy loot_records_modify on public.loot_records for all using (public.user_has_min_role(guild_id, 'officer')) with check (public.user_has_min_role(guild_id, 'officer'));
+create policy loot_records_modify on public.loot_records for all using (public.user_has_min_role(guild_id, 'raider')) with check (public.user_has_min_role(guild_id, 'raider'));
 
 -- Loot distribution
 create policy loot_distribution_select on public.loot_distribution for
@@ -163,7 +163,7 @@ create policy loot_distribution_modify on public.loot_distribution for all using
             where
                 lr.id = loot_distribution.loot_id
         ),
-        'officer'
+        'raider'
     )
 ) with check (
     public.user_has_min_role(
@@ -175,6 +175,7 @@ create policy loot_distribution_modify on public.loot_distribution for all using
             where
                 lr.id = loot_distribution.loot_id
         ),
-        'officer'
+        'raider'
     )
 );
+

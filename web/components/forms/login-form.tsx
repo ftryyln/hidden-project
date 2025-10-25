@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
@@ -8,8 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/components/ui/use-toast";
-import { toApiError } from "@/lib/api";
-import { useState } from "react";
+import { toApiError } from "@/lib/api/errors";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -36,10 +36,10 @@ export function LoginForm() {
       await login(values);
       toast({
         title: "Welcome back!",
-        description: "Login successful, redirecting to the dashboard…",
+        description: "Login successful, redirecting to the dashboard.",
       });
     } catch (error) {
-      const apiError = toApiError(error);
+      const apiError = await toApiError(error);
       toast({
         title: "Login failed",
         description: apiError.message,
