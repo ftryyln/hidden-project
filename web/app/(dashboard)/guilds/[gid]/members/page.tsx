@@ -26,6 +26,7 @@ import type { CreateGuildAccessResponse } from "@/lib/api/guild-access";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
+import { useDashboardGuild } from "@/components/dashboard/dashboard-guild-context";
 const membersQueryKey = (
   guildId: string,
   search: string,
@@ -71,6 +72,13 @@ function getInitials(name: string): string {
 export default function GuildMembersPage() {
   const params = useParams<{ gid: string }>();
   const guildId = params?.gid;
+  const { selectedGuild, changeGuild } = useDashboardGuild();
+
+  useEffect(() => {
+    if (guildId && guildId !== selectedGuild) {
+      changeGuild(guildId);
+    }
+  }, [guildId, selectedGuild, changeGuild]);
 
   const toast = useToast();
   const queryClient = useQueryClient();

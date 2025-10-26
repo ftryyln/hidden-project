@@ -26,6 +26,7 @@ import { Gift, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
 import { toApiError } from "@/lib/api/errors";
+import { useDashboardGuild } from "@/components/dashboard/dashboard-guild-context";
 
 const lootQueryKey = (guildId: string) => ["guild", guildId, "loot"] as const;
 const lootMembersQueryKey = (guildId: string) => ["guild", guildId, "members", { for: "loot" }] as const;
@@ -33,6 +34,13 @@ const lootMembersQueryKey = (guildId: string) => ["guild", guildId, "members", {
 export default function LootPage() {
   const params = useParams<{ gid: string }>();
   const guildId = params.gid;
+  const { selectedGuild, changeGuild } = useDashboardGuild();
+
+  useEffect(() => {
+    if (guildId && guildId !== selectedGuild) {
+      changeGuild(guildId);
+    }
+  }, [guildId, selectedGuild, changeGuild]);
   const toast = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();

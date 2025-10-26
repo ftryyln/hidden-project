@@ -1,28 +1,11 @@
-"use client";
+import { createAuthMetadata } from "../metadata";
+import { ForgotPasswordPageClient } from "./forgot-password-page.client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ForgotPasswordForm } from "@/components/forms/forgot-password-form";
-import { useAuth } from "@/hooks/use-auth";
-import { AuthShell } from "@/components/auth/auth-shell";
+export const metadata = createAuthMetadata({
+  title: "Forgot password",
+  description: "Request a reset link to regain access to your Guild Manager account.",
+});
 
 export default function ForgotPasswordPage() {
-  const { status } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [status, router]);
-
-  return (
-    <AuthShell
-      title="Reset your password"
-      description="Enter your email address and we'll send you a password reset link."
-      topLink={{ href: "/login", label: "Back to login" }}
-    >
-      <ForgotPasswordForm />
-    </AuthShell>
-  );
+  return <ForgotPasswordPageClient />;
 }

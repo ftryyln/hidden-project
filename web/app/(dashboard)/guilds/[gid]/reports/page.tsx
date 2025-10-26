@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -22,11 +22,20 @@ import { Download } from "lucide-react";
 import { toApiError } from "@/lib/api/errors";
 import { useAuth } from "@/hooks/use-auth";
 import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
+import { useDashboardGuild } from "@/components/dashboard/dashboard-guild-context";
 
 export default function ReportsPage() {
   const params = useParams<{ gid: string }>();
   const guildId = params.gid;
   const toast = useToast();
+
+  const { selectedGuild, changeGuild } = useDashboardGuild();
+
+  useEffect(() => {
+    if (guildId && guildId !== selectedGuild) {
+      changeGuild(guildId);
+    }
+  }, [guildId, selectedGuild, changeGuild]);
 
   const { user } = useAuth();
   const guildRole = deriveGuildRole(user ?? null, guildId);
