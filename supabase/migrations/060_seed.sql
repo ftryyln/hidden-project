@@ -66,21 +66,46 @@ begin
   -- Pastikan profile & guild roles
   insert into public.profiles (id, email, display_name)
   values (v_user_id, v_email, v_display)
-  on conflict (id) do update set email = excluded.email;
+  on conflict (id) do update
+    set email = excluded.email,
+        app_role = 'super_admin';
 
-  insert into public.guild_user_roles (guild_id, user_id, role)
-  select g.id, v_user_id, 'guild_admin'
+  update public.profiles
+  set app_role = 'super_admin'
+  where id = v_user_id;
+
+  insert into public.guild_user_roles (guild_id, user_id, role, assigned_by_user_id, source)
+  select g.id, v_user_id, 'guild_admin', v_user_id, 'seed'
   from public.guilds g
-  on conflict (guild_id, user_id) do update set role = excluded.role;
+  on conflict (guild_id, user_id)
+  do update set
+    role = excluded.role,
+    revoked_at = null,
+    source = 'seed',
+    assigned_by_user_id = excluded.assigned_by_user_id,
+    assigned_at = timezone('utc', now());
 
   if not exists (select 1 from public.guilds) then
     insert into public.guilds (id, name, tag, description)
     values ('11111111-2222-3333-4444-555555555555', 'Main Guild', 'MAIN', 'Default guild for initial admin')
     on conflict do nothing;
 
-    insert into public.guild_user_roles (guild_id, user_id, role)
-    values ('11111111-2222-3333-4444-555555555555', v_user_id, 'guild_admin')
-    on conflict (guild_id, user_id) do update set role = excluded.role;
+    insert into public.guild_user_roles (guild_id, user_id, role, assigned_by_user_id, source)
+    values ('11111111-2222-3333-4444-555555555555', v_user_id, 'guild_admin', v_user_id, 'seed')
+    on conflict (guild_id, user_id) do update set
+      role = excluded.role,
+      revoked_at = null,
+      source = 'seed',
+      assigned_by_user_id = excluded.assigned_by_user_id,
+      assigned_at = timezone('utc', now());
   end if;
+
+  insert into public.audit_logs (guild_id, actor_user_id, target_user_id, action, metadata)
+  select gur.guild_id, v_user_id, v_user_id, 'ROLE_ASSIGNED',
+         jsonb_build_object('role', gur.role, 'source', gur.source, 'seed', true)
+  from public.guild_user_roles gur
+  where gur.user_id = v_user_id
+    and gur.revoked_at is null
+  on conflict do nothing;
 end
 $$;

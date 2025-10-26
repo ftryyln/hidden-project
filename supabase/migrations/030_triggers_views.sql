@@ -71,11 +71,11 @@ set search_path = public
 as $func$
 begin
   if (old.confirmed is distinct from true) and new.confirmed = true then
-    insert into public.audit_logs (guild_id, user_id, action, payload)
+    insert into public.audit_logs (guild_id, actor_user_id, action, metadata)
     values (
       new.guild_id,
       coalesce(new.confirmed_by, auth.uid()),
-      'transaction.confirmed',
+      'TRANSACTION_CONFIRMED',
       jsonb_build_object(
         'transaction_id', new.id,
         'confirmed_by',   new.confirmed_by,

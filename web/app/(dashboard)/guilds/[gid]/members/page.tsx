@@ -2,72 +2,60 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 import { MemberForm, type MemberSchema } from "@/components/forms/member-form";
-
-import {
-  listMembers,
-  createMember,
-  updateMember,
-  toggleMemberStatus,
-  type MemberListResponse,
-} from "@/lib/api/members";
+import { listMembers, createMember, updateMember, toggleMemberStatus, type MemberListResponse } from "@/lib/api/members";
 
 import { useToast } from "@/components/ui/use-toast";
 import { formatDate } from "@/lib/format";
-import type { GuildRoleAssignment, Member } from "@/lib/types";
-import { Edit, UserPlus, Power, Search, Shield } from "lucide-react";
+import type { AuditLog, GuildInvite, GuildRole, GuildRoleAssignment, Member } from "@/lib/types";
+import { Clipboard, Copy, Edit, Link, Mail, Power, RefreshCw, Search, Shield, Trash2, UserPlus } from "lucide-react";
 import { toApiError } from "@/lib/api/errors";
-import { fetchGuildAccess, updateGuildAccess, createGuildAccess } from "@/lib/api/guild-access";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { createGuildAccess, createGuildInvite, fetchGuildAccess, fetchGuildAuditLogs, fetchGuildInvites, revokeGuildAccess, revokeGuildInvite, updateGuildAccess } from "@/lib/api/guild-access";
+import type { CreateGuildAccessResponse } from "@/lib/api/guild-access";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
-
-// ------------------------------
-// Helpers
-// ------------------------------
 const membersQueryKey = (
   guildId: string,
   search: string,
-  showInactive: boolean
+  showInactive: boolean,
 ) => ["guild", guildId, "members", { search, showInactive }] as const;
 
 const accessQueryKey = (guildId: string) =>
   ["guild", guildId, "access-control"] as const;
+
+const invitesQueryKey = (guildId: string) =>
+  ["guild", guildId, "invites"] as const;
+
+const auditQueryKey = (guildId: string) =>
+  ["guild", guildId, "audit-logs"] as const;
+
+const ROLE_OPTIONS: { value: GuildRole; label: string }[] = [
+  { value: "guild_admin", label: "Guild admin" },
+  { value: "officer", label: "Officer" },
+  { value: "raider", label: "Raider" },
+  { value: "member", label: "Member" },
+  { value: "viewer", label: "Viewer" },
+];
+
+const INVITE_TTL_OPTIONS = [
+  { label: "7 days", value: 7 },
+  { label: "14 days", value: 14 },
+  { label: "30 days", value: 30 },
+];
+
+const AUDIT_PAGE_SIZE = 25;
 
 function getInitials(name: string): string {
   return name
@@ -90,29 +78,29 @@ export default function GuildMembersPage() {
 
   const guildRole = useMemo(
     () => deriveGuildRole(user ?? null, guildId),
-    [user, guildId]
+    [user, guildId],
   );
   const permissions = useMemo(
     () => getGuildPermissions(guildRole),
-    [guildRole]
+    [guildRole],
   );
 
-  // UI state
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [accessEmail, setAccessEmail] = useState("");
-  const [accessRole, setAccessRole] = useState<GuildRoleAssignment["role"]>("member");
+  const [accessRole, setAccessRole] = useState<GuildRole>("member");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<GuildRole>("member");
+  const [inviteTtlDays, setInviteTtlDays] = useState<number>(7);
+  const [lastInviteInfo, setLastInviteInfo] = useState<{ email?: string | null; token?: string | null } | null>(null);
 
-  // Debounce search input → search
   useEffect(() => {
     const id = setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => clearTimeout(id);
   }, [searchInput]);
-
-  // Queries
   const membersQuery = useQuery({
     queryKey: guildId ? membersQueryKey(guildId, search, showInactive) : [],
     queryFn: async (): Promise<MemberListResponse> =>
@@ -127,38 +115,61 @@ export default function GuildMembersPage() {
   const accessQuery = useQuery({
     queryKey: guildId ? accessQueryKey(guildId) : [],
     queryFn: async () => fetchGuildAccess(guildId!),
-    enabled: Boolean(guildId) && permissions.canManageRoles,
+    enabled: Boolean(guildId),
   });
 
-  // Mutations
+  const invitesQuery = useQuery({
+    queryKey: guildId ? invitesQueryKey(guildId) : [],
+    queryFn: async () => fetchGuildInvites(guildId!),
+    enabled: Boolean(guildId && permissions.canManageInvites),
+  });
+
+  const auditQuery = useInfiniteQuery({
+    queryKey: guildId ? auditQueryKey(guildId) : [],
+    queryFn: async ({ pageParam }: { pageParam?: string }) =>
+      fetchGuildAuditLogs(guildId!, { limit: AUDIT_PAGE_SIZE, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.length < AUDIT_PAGE_SIZE ? undefined : lastPage[lastPage.length - 1].created_at,
+    enabled: Boolean(guildId && permissions.canViewAudit),
+  });
+
   const invalidateMembers = useCallback(async () => {
     if (!guildId) return;
     await queryClient.invalidateQueries({
       queryKey: ["guild", guildId, "members"],
     });
   }, [guildId, queryClient]);
-
   const createAccessMutation = useMutation({
-    mutationFn: async ({ email, role }: { email: string; role: GuildRoleAssignment["role"] }) => {
+    mutationFn: async ({ email, role }: { email: string; role: GuildRole }) => {
       if (!guildId) {
         throw new Error("Guild context is missing");
       }
-      return createGuildAccess(guildId, {
-        email,
-        role,
-      });
+      return createGuildAccess(guildId, { email, role }) as Promise<CreateGuildAccessResponse>;
     },
-    onSuccess: async () => {
-      if (!guildId) {
-        return;
-      }
-      await queryClient.invalidateQueries({ queryKey: ["guild", guildId, "access-control"] });
+    onSuccess: async (result) => {
+      if (!guildId) return;
+      await queryClient.invalidateQueries({ queryKey: accessQueryKey(guildId) });
       setAccessEmail("");
       setAccessRole("member");
-      toast({
-        title: "Access granted",
-        description: "User can now access this guild.",
-      });
+      if (result.type === "assignment") {
+        toast({
+          title: "Access granted",
+          description: "User can now access this guild.",
+        });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: invitesQueryKey(guildId) });
+        setLastInviteInfo({
+          email: result.invite.email ?? null,
+          token: result.invite.token ?? null,
+        });
+        toast({
+          title: "Invite created",
+          description: result.invite.email
+            ? `Invite ready for ${result.invite.email}`
+            : "Open invite generated.",
+        });
+      }
     },
     onError: async (error) => {
       const apiError = await toApiError(error);
@@ -169,14 +180,10 @@ export default function GuildMembersPage() {
       });
     },
   });
-  const accessMutation = useMutation({
-    mutationFn: async ({
-      userId,
-      role,
-    }: {
-      userId: string;
-      role: GuildRoleAssignment["role"];
-    }) => updateGuildAccess(guildId!, userId, role),
+
+  const updateAccessMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: GuildRole }) =>
+      updateGuildAccess(guildId!, userId, role),
     onSuccess: async () => {
       if (!guildId) return;
       await queryClient.invalidateQueries({ queryKey: accessQueryKey(guildId) });
@@ -188,6 +195,57 @@ export default function GuildMembersPage() {
     },
   });
 
+  const revokeAccessMutation = useMutation({
+    mutationFn: async (userId: string) => revokeGuildAccess(guildId!, userId),
+    onSuccess: async () => {
+      if (!guildId) return;
+      await queryClient.invalidateQueries({ queryKey: accessQueryKey(guildId) });
+      toast({ title: "Access revoked" });
+    },
+    onError: async (error) => {
+      const apiError = await toApiError(error);
+      toast({ title: "Failed to revoke access", description: apiError.message, variant: "destructive" });
+    },
+  });
+  const createInviteMutation = useMutation({
+    mutationFn: async ({
+      email,
+      role,
+      expiresAt,
+    }: {
+      email?: string;
+      role: GuildRole;
+      expiresAt?: string;
+    }) => createGuildInvite(guildId!, { email, default_role: role, expires_at: expiresAt }),
+    onSuccess: async (invite) => {
+      if (!guildId) return;
+      await queryClient.invalidateQueries({ queryKey: invitesQueryKey(guildId) });
+      setInviteEmail("");
+      setInviteRole("member");
+      setLastInviteInfo({ email: invite.email ?? null, token: invite.token ?? null });
+      toast({
+        title: "Invite ready",
+        description: invite.email ? `Invite ready for ${invite.email}` : "Open invite generated.",
+      });
+    },
+    onError: async (error) => {
+      const apiError = await toApiError(error);
+      toast({ title: "Failed to create invite", description: apiError.message, variant: "destructive" });
+    },
+  });
+
+  const revokeInviteMutation = useMutation({
+    mutationFn: async (inviteId: string) => revokeGuildInvite(guildId!, inviteId),
+    onSuccess: async () => {
+      if (!guildId) return;
+      await queryClient.invalidateQueries({ queryKey: invitesQueryKey(guildId) });
+      toast({ title: "Invite revoked" });
+    },
+    onError: async (error) => {
+      const apiError = await toApiError(error);
+      toast({ title: "Failed to revoke invite", description: apiError.message, variant: "destructive" });
+    },
+  });
   const createMutation = useMutation({
     mutationFn: async (payload: MemberSchema) =>
       createMember(guildId!, {
@@ -253,8 +311,6 @@ export default function GuildMembersPage() {
       toast({ title: "Failed to update status", description: apiError.message });
     },
   });
-
-  // Derived
   const members = membersQuery.data?.members ?? [];
   const total = membersQuery.data?.total ?? 0;
 
@@ -274,14 +330,60 @@ export default function GuildMembersPage() {
   const isLoading = membersQuery.isLoading;
   const isSaving = createMutation.isPending || updateMutation.isPending;
   const emptyState = !isLoading && members.length === 0;
-  const accessControl = permissions.canManageRoles ? accessQuery.data ?? [] : [];
+  const accessControl = accessQuery.data ?? [];
+  const adminCount = accessControl.filter((entry) => entry.role === "guild_admin").length;
+  const invites = invitesQuery.data ?? [];
+  const invitesLoading = invitesQuery.isLoading;
+  const auditLogs = auditQuery.data?.pages.flat() ?? [];
+  const auditLoading = auditQuery.isLoading;
 
-  // ------------------------------
-  // Render
-  // ------------------------------
+  const canManageMembers = permissions.canManageMembers;
+  const canManageRoles = permissions.canManageRoles;
+  const canManageInvites = permissions.canManageInvites;
+  const canViewAudit = permissions.canViewAudit;
+
+  const formatRelativeTime = useCallback((iso: string | null | undefined) => {
+    if (!iso) return "-";
+    try {
+      return formatDistanceToNow(new Date(iso), { addSuffix: true });
+    } catch {
+      return formatDate(iso);
+    }
+  }, []);
+
+  const handleCopyToken = useCallback(
+    async (token: string) => {
+      try {
+        await navigator.clipboard.writeText(token);
+        toast({ title: "Invite token copied" });
+      } catch (copyError) {
+        toast({
+          title: "Copy failed",
+          description: "Copy the token manually.",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast],
+  );
+
+  const statusBadgeVariant = useCallback((status: GuildInvite["status"]) => {
+    switch (status) {
+      case "pending":
+        return "outline" as const;
+      case "used":
+        return "secondary" as const;
+      case "revoked":
+      case "expired":
+      case "superseded":
+        return "destructive" as const;
+      default:
+        return "outline" as const;
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Members</h1>
@@ -290,7 +392,7 @@ export default function GuildMembersPage() {
           </p>
         </div>
 
-        {permissions.canManageMembers && (
+        {canManageMembers && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button
@@ -307,9 +409,7 @@ export default function GuildMembersPage() {
 
             <DialogContent className="max-w-lg">
               <DialogHeader>
-                <DialogTitle>
-                  {selectedMember ? "Edit member" : "Add member"}
-                </DialogTitle>
+                <DialogTitle>{selectedMember ? "Edit member" : "Add member"}</DialogTitle>
               </DialogHeader>
 
               <MemberForm
@@ -329,7 +429,6 @@ export default function GuildMembersPage() {
         )}
       </header>
 
-      {/* Roster card */}
       <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur">
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -342,7 +441,7 @@ export default function GuildMembersPage() {
               <Search className="mr-2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search members"
                 className="border-0 bg-transparent focus-visible:ring-0"
               />
@@ -376,7 +475,7 @@ export default function GuildMembersPage() {
                   Add guild members to start tracking your roster.
                 </p>
               </div>
-              {permissions.canManageMembers && (
+              {canManageMembers && (
                 <Button
                   className="rounded-full"
                   onClick={() => {
@@ -434,7 +533,7 @@ export default function GuildMembersPage() {
                       </TableCell>
 
                       <TableCell className="text-right">
-                        {permissions.canManageMembers ? (
+                        {canManageMembers ? (
                           <div className="flex justify-end gap-2">
                             <Button
                               aria-label="Edit member"
@@ -471,148 +570,414 @@ export default function GuildMembersPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Access control card */}
-      <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur">
-        <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Shield className="h-5 w-5" />
+      <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+        <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur">
+          <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Shield className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle>Guild access control</CardTitle>
+                <CardDescription>Promote members to manage guild resources.</CardDescription>
+              </div>
             </div>
-            <div>
-              <CardTitle>Guild access control</CardTitle>
-              <CardDescription>Promote members to manage guild resources.</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {permissions.canManageRoles && (
-            <div className="mb-6 grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] md:items-end">
-              <div className="grid gap-1">
-                <span className="text-sm font-semibold">User email</span>
-                <Input
-                  type="email"
-                  placeholder="user@example.com"
-                  value={accessEmail}
-                  onChange={(event) => setAccessEmail(event.target.value)}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {canManageRoles ? (
+              <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] md:items-end">
+                <div className="grid gap-1">
+                  <span className="text-sm font-semibold">User email</span>
+                  <Input
+                    type="email"
+                    placeholder="user@example.com"
+                    value={accessEmail}
+                    onChange={(event) => setAccessEmail(event.target.value)}
+                    disabled={createAccessMutation.isPending}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <span className="text-sm font-semibold">Role</span>
+                  <Select
+                    value={accessRole}
+                    onValueChange={(value) => setAccessRole(value as GuildRole)}
+                    disabled={createAccessMutation.isPending}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  className="md:self-center"
                   disabled={createAccessMutation.isPending}
-                />
-              </div>
-              <div className="grid gap-1">
-                <span className="text-sm font-semibold">Role</span>
-                <Select
-                  value={accessRole}
-                  onValueChange={(value) =>
-                    setAccessRole(value as GuildRoleAssignment["role"])
-                  }
+                  onClick={() => {
+                    const email = accessEmail.trim();
+                    if (!email) {
+                      toast({
+                        title: "Email required",
+                        description: "Enter an email before granting access.",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    createAccessMutation.mutate({ email, role: accessRole });
+                  }}
                 >
-                  <SelectTrigger className="w-full" disabled={createAccessMutation.isPending}>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="guild_admin">Guild admin</SelectItem>
-                    <SelectItem value="officer">Officer</SelectItem>
-                    <SelectItem value="raider">Raider</SelectItem>
-                    <SelectItem value="member">Member</SelectItem>
-                    <SelectItem value="viewer">Viewer</SelectItem>
-                  </SelectContent>
-                </Select>
+                  {createAccessMutation.isPending ? "Granting..." : "Grant access"}
+                </Button>
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                You can view access assignments but do not have permission to modify them.
+              </p>
+            )}
+
+            {accessQuery.isLoading && (
+              <div className="space-y-3">
+                <Skeleton className="h-12 rounded-3xl" />
+                <Skeleton className="h-12 rounded-3xl" />
+              </div>
+            )}
+
+            {!accessQuery.isLoading && accessControl.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No authenticated users are linked to this guild yet. Invite users or promote them to grant access.
+              </p>
+            )}
+
+            {!accessQuery.isLoading && accessControl.length > 0 && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Updated</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {accessControl.map((assignment) => {
+                    const isLastAdmin = assignment.role === "guild_admin" && adminCount <= 1;
+                    return (
+                      <TableRow key={assignment.user_id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium">
+                              {assignment.user?.display_name ?? assignment.user?.email ?? assignment.user_id}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {assignment.user?.email ?? "pending user"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={assignment.role}
+                            onValueChange={(value) =>
+                              updateAccessMutation.mutate({
+                                userId: assignment.user_id,
+                                role: value as GuildRole,
+                              })
+                            }
+                            disabled={!canManageRoles || isLastAdmin || updateAccessMutation.isPending}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROLE_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="uppercase">
+                            {assignment.source ?? "manual"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatRelativeTime(assignment.assigned_at)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {canManageRoles ? (
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                aria-label="Revoke access"
+                                variant="ghost"
+                                size="icon"
+                                disabled={isLastAdmin || revokeAccessMutation.isPending}
+                                onClick={() => revokeAccessMutation.mutate(assignment.user_id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No actions</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur">
+          <CardHeader>
+            <CardTitle>Invite members</CardTitle>
+            <CardDescription>Create invite links with default roles and expiry.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {canManageInvites ? (
+              <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+                <div className="grid gap-1">
+                  <span className="text-sm font-semibold">Recipient email (optional)</span>
+                  <Input
+                    type="email"
+                    placeholder="new-user@example.com"
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    disabled={createInviteMutation.isPending}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <span className="text-sm font-semibold">Role</span>
+                  <Select
+                    value={inviteRole}
+                    onValueChange={(value) => setInviteRole(value as GuildRole)}
+                    disabled={createInviteMutation.isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1">
+                  <span className="text-sm font-semibold">Expires</span>
+                  <Select
+                    value={String(inviteTtlDays)}
+                    onValueChange={(value) => setInviteTtlDays(Number(value))}
+                    disabled={createInviteMutation.isPending}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select expiry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INVITE_TTL_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={String(option.value)}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  disabled={createInviteMutation.isPending}
+                  onClick={() => {
+                    const email = inviteEmail.trim();
+                    const expiresAt =
+                      inviteTtlDays > 0
+                        ? new Date(Date.now() + inviteTtlDays * 24 * 60 * 60 * 1000).toISOString()
+                        : undefined;
+                    createInviteMutation.mutate({
+                      email: email.length > 0 ? email : undefined,
+                      role: inviteRole,
+                      expiresAt,
+                    });
+                  }}
+                >
+                  {createInviteMutation.isPending ? "Generating..." : "Generate invite"}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                You do not have permission to generate invites for this guild.
+              </p>
+            )}
+
+            {lastInviteInfo?.token && (
+              <div className="rounded-2xl border border-border/60 bg-muted/10 p-4">
+                <p className="text-sm font-semibold">Latest invite token</p>
+                <p className="text-xs text-muted-foreground">
+                  Copy and share this token securely. It will only be displayed once.
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <Input readOnly value={lastInviteInfo.token ?? ""} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleCopyToken(lastInviteInfo.token ?? "")}
+                  >
+                    <Clipboard className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {invitesLoading && (
+              <div className="space-y-2">
+                <Skeleton className="h-12 rounded-2xl" />
+                <Skeleton className="h-12 rounded-2xl" />
+              </div>
+            )}
+
+            {!invitesLoading && invites.length > 0 && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invites.map((invite) => (
+                    <TableRow key={invite.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-sm">
+                          {invite.email ? (
+                            <>
+                              <Mail className="h-4 w-4 text-muted-foreground" />
+                              <span>{invite.email}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Link className="h-4 w-4 text-muted-foreground" />
+                              <span>Open invite</span>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="capitalize">{invite.default_role}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatRelativeTime(invite.expires_at)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusBadgeVariant(invite.status)} className="uppercase">
+                          {invite.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {canManageInvites && invite.status === "pending" ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => revokeInviteMutation.mutate(invite.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No actions</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+
+            {!invitesLoading && invites.length === 0 && (
+              <p className="text-sm text-muted-foreground">No invites have been generated yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      {canViewAudit && (
+        <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur">
+          <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>Audit log</CardTitle>
+              <CardDescription>Track invite activity and access changes.</CardDescription>
+            </div>
+            <div className="flex gap-2">
               <Button
                 type="button"
-                className="md:self-center"
-                disabled={createAccessMutation.isPending}
-                onClick={() => {
-                  const email = accessEmail.trim();
-                  if (!email) {
-                    toast({
-                      title: "Email required",
-                      description: "Enter an email before granting access.",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
-                  createAccessMutation.mutate({ email, role: accessRole });
-                }}
+                variant="outline"
+                size="icon"
+                onClick={() => auditQuery.refetch()}
               >
-                {createAccessMutation.isPending ? "Granting…" : "Grant access"}
+                <RefreshCw className="h-4 w-4" />
               </Button>
+              {auditQuery.hasNextPage && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => auditQuery.fetchNextPage()}
+                  disabled={auditQuery.isFetchingNextPage}
+                >
+                  {auditQuery.isFetchingNextPage ? "Loading..." : "Load more"}
+                </Button>
+              )}
             </div>
-          )}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {auditLoading && (
+              <div className="space-y-2">
+                <Skeleton className="h-14 rounded-2xl" />
+                <Skeleton className="h-14 rounded-2xl" />
+              </div>
+            )}
 
-          {accessQuery.isLoading && (
-            <div className="space-y-3">
-              <Skeleton className="h-14 rounded-3xl" />
-              <Skeleton className="h-14 rounded-3xl" />
-            </div>
-          )}
+            {!auditLoading && auditLogs.length === 0 && (
+              <p className="text-sm text-muted-foreground">No audit events recorded yet.</p>
+            )}
 
-          {!accessQuery.isLoading && accessControl.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              No authenticated users are linked to this guild yet. Invite users or promote them to grant access.
-            </p>
-          )}
-
-          {!accessQuery.isLoading && accessControl.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {accessControl.map((access: GuildRoleAssignment) => (
-                  <TableRow key={access.user_id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">
-                          {access.user?.display_name ?? access.user?.email ?? access.user_id}
+            {!auditLoading &&
+              auditLogs.map((log) => (
+                <div key={log.id} className="rounded-2xl border border-border/60 bg-muted/10 p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold uppercase">{log.action.replace(/_/g, " ")}</span>
+                    <span className="text-xs text-muted-foreground">{formatRelativeTime(log.created_at)}</span>
+                  </div>
+                  <div className="mt-1 text-sm">
+                    <span className="font-medium">{log.actor_name ?? "System"}</span>
+                    <span className="text-muted-foreground">{"->"}</span>
+                    <span>{log.target_name ?? "N/A"}</span>
+                  </div>
+                  {Object.keys(log.metadata ?? {}).length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {Object.entries(log.metadata ?? {}).map(([key, value]) => (
+                        <span
+                          key={key}
+                          className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground"
+                        >
+                          {key}: {typeof value === "string" ? value : JSON.stringify(value)}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {access.user?.email ?? "—"}
-                        </span>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <Select
-                        value={access.role}
-                        onValueChange={(value) =>
-                          accessMutation.mutate({
-                            userId: access.user_id,
-                            role: value as GuildRoleAssignment["role"],
-                          })
-                        }
-                      >
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="guild_admin">Guild admin</SelectItem>
-                          <SelectItem value="officer">Officer</SelectItem>
-                          <SelectItem value="raider">Raider</SelectItem>
-                          <SelectItem value="member">Member</SelectItem>
-                          <SelectItem value="viewer">Viewer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-
-                    <TableCell className="text-right">
-                      {access.role === "guild_admin" && (
-                        <Badge variant="success">Full access</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

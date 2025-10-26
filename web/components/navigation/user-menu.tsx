@@ -58,7 +58,7 @@ export function UserMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem className="gap-2 text-xs text-muted-foreground">
           <Shield className="h-4 w-4" />
-          Role: {user?.role ?? "member"}
+          Role: {user?.app_role ?? "member"}
         </DropdownMenuItem>
         <DropdownMenuItem className="text-xs text-muted-foreground">
           {formatDateTime(new Date())}

@@ -161,9 +161,9 @@ export async function confirmTransaction(
 
   await recordAuditLog(supabaseAdmin, {
     guildId,
-    userId,
-    action: "transaction.confirmed",
-    data: {
+    actorUserId: userId,
+    action: "TRANSACTION_CONFIRMED",
+    metadata: {
       transaction_id: transactionId,
       confirmed_at: confirmedAt,
     },

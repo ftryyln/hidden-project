@@ -42,7 +42,8 @@ export async function fetchGuildSummaries(userId: string): Promise<GuildSummary[
     .from("guild_user_roles")
     .select("guild_id, role, guild:guild_id ( id, name, tag )")
     .eq("user_id", userId)
-    .order("created_at", { ascending: true });
+    .is("revoked_at", null)
+    .order("assigned_at", { ascending: true });
 
   if (error) {
     console.error("Failed to load guild memberships", error);
@@ -145,7 +146,7 @@ export async function fetchDashboard(
     supabaseAdmin
       .from("audit_logs")
       .select(
-        "id, guild_id, user_id, action, payload, created_at, profiles:profiles!audit_logs_user_id_fkey(display_name,email)",
+        "id, guild_id, actor_user_id, target_user_id, action, metadata, created_at, actor:profiles!audit_logs_actor_user_id_fkey(display_name,email), target:profiles!audit_logs_target_user_id_fkey(display_name,email)",
       )
       .eq("guild_id", activeGuildId)
       .order("created_at", { ascending: false })
@@ -230,12 +231,17 @@ export async function fetchDashboard(
 
   const audit: AuditLog[] =
     auditLogs.data?.map((log) => {
-      const profile = Array.isArray(log.profiles) ? log.profiles?.[0] : log.profiles;
+      const actorProfile = Array.isArray(log.actor) ? log.actor?.[0] : log.actor;
+      const targetProfile = Array.isArray(log.target) ? log.target?.[0] : log.target;
       return {
         id: log.id,
+        guild_id: log.guild_id,
+        actor_user_id: log.actor_user_id ?? null,
+        actor_name: actorProfile?.display_name ?? actorProfile?.email ?? null,
+        target_user_id: log.target_user_id ?? null,
+        target_name: targetProfile?.display_name ?? targetProfile?.email ?? null,
         action: log.action,
-        payload: (log.payload as Record<string, unknown>) ?? {},
-        user_name: profile?.display_name ?? profile?.email,
+        metadata: (log.metadata as Record<string, unknown>) ?? {},
         created_at: log.created_at,
       };
     }) ?? [];

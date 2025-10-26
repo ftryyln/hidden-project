@@ -79,9 +79,9 @@ serve(async (req) => {
     .from("audit_logs")
     .insert({
       guild_id: transaction.guild_id,
-      user_id: auth.user.id,
-      action: "transaction.confirmed",
-      payload: {
+      actor_user_id: auth.user.id,
+      action: "TRANSACTION_CONFIRMED",
+      metadata: {
         transaction_id: transactionId,
         confirmed_at: confirmedAt,
       },

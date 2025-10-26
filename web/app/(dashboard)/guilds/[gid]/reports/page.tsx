@@ -39,8 +39,8 @@ export default function ReportsPage() {
     queryKey: ["guild", guildId, "reports", period],
     queryFn: () =>
       fetchReports(guildId, {
-        from: period.from ? period.from.toISOString() : undefined,
-        to: period.to ? period.to.toISOString() : undefined,
+        from: period.from ? new Date(period.from).toISOString() : undefined,
+        to: period.to ? new Date(period.to).toISOString() : undefined,
       }),
     enabled: Boolean(guildId),
   });
@@ -48,8 +48,8 @@ export default function ReportsPage() {
   const exportMutation = useMutation({
     mutationFn: async () =>
       exportReportsCsv(guildId, resource, {
-        from: period.from ? period.from.toISOString() : undefined,
-        to: period.to ? period.to.toISOString() : undefined,
+        from: period.from ? new Date(period.from).toISOString() : undefined,
+        to: period.to ? new Date(period.to).toISOString() : undefined,
       }),
     onSuccess: (data) => {
       const blob = new Blob([data], { type: "text/csv;charset=utf-8" });

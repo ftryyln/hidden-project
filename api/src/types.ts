@@ -1,7 +1,18 @@
-export type GuildRole = "guild_admin" | "officer" | "raider" | "member" | "viewer";
+export type UserRole = "super_admin" | "guild_admin" | "officer" | "raider" | "member" | "viewer";
+export type GuildRole = Exclude<UserRole, "super_admin">;
 export type MemberRole = "leader" | "officer" | "raider" | "casual";
 export type TransactionType = "income" | "expense" | "transfer";
 export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic";
+export type AssignmentSource = "invite" | "manual" | "seed" | "system";
+export type InviteStatus = "pending" | "revoked" | "used" | "expired" | "superseded";
+export type AuditAction =
+  | "ROLE_ASSIGNED"
+  | "ROLE_REVOKED"
+  | "INVITE_CREATED"
+  | "INVITE_REVOKED"
+  | "INVITE_ACCEPTED"
+  | "TRANSACTION_CONFIRMED"
+  | "LOOT_DISTRIBUTED";
 
 export interface GuildSummary {
   id: string;
@@ -75,9 +86,13 @@ export interface MonthlySummaryPoint {
 
 export interface AuditLog {
   id: string;
-  action: string;
-  payload: Record<string, unknown>;
-  user_name?: string;
+  action: AuditAction;
+  guild_id?: string | null;
+  actor_user_id?: string | null;
+  actor_name?: string | null;
+  target_user_id?: string | null;
+  target_name?: string | null;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 

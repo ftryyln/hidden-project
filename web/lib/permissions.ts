@@ -1,20 +1,26 @@
 
-import type { AuthProfile, GuildRole } from "@/lib/types";
+import type { AuthProfile, GuildRole, UserRole } from "@/lib/types";
 
 export interface GuildPermissions {
-  role: GuildRole | null;
+  role: UserRole | null;
   canManageMembers: boolean;
   canManageRoles: boolean;
   canManageTransactions: boolean;
   canManageLoot: boolean;
   canExportReports: boolean;
+  canManageInvites: boolean;
+  canViewAudit: boolean;
+  canViewGlobalAudit: boolean;
 }
 
 export function deriveGuildRole(
   user: AuthProfile | null | undefined,
   guildId?: string,
-): GuildRole | null {
+): UserRole | null {
   if (!user) return null;
+  if (user.app_role === "super_admin") {
+    return "super_admin";
+  }
   if (guildId) {
     const assignment = user.guild_roles?.find((role) => role.guild_id === guildId);
     if (assignment) {
@@ -24,8 +30,20 @@ export function deriveGuildRole(
   return user.app_role ?? null;
 }
 
-export function getGuildPermissions(role: GuildRole | null): GuildPermissions {
+export function getGuildPermissions(role: UserRole | null): GuildPermissions {
   switch (role) {
+    case "super_admin":
+      return {
+        role,
+        canManageMembers: true,
+        canManageRoles: true,
+        canManageTransactions: true,
+        canManageLoot: true,
+        canExportReports: true,
+        canManageInvites: true,
+        canViewAudit: true,
+        canViewGlobalAudit: true,
+      };
     case "guild_admin":
       return {
         role,
@@ -34,6 +52,9 @@ export function getGuildPermissions(role: GuildRole | null): GuildPermissions {
         canManageTransactions: true,
         canManageLoot: true,
         canExportReports: true,
+        canManageInvites: true,
+        canViewAudit: true,
+        canViewGlobalAudit: false,
       };
     case "officer":
       return {
@@ -43,6 +64,9 @@ export function getGuildPermissions(role: GuildRole | null): GuildPermissions {
         canManageTransactions: true,
         canManageLoot: true,
         canExportReports: true,
+        canManageInvites: false,
+        canViewAudit: true,
+        canViewGlobalAudit: false,
       };
     case "raider":
       return {
@@ -50,8 +74,11 @@ export function getGuildPermissions(role: GuildRole | null): GuildPermissions {
         canManageMembers: false,
         canManageRoles: false,
         canManageTransactions: false,
-        canManageLoot: true,
+        canManageLoot: false,
         canExportReports: false,
+        canManageInvites: false,
+        canViewAudit: true,
+        canViewGlobalAudit: false,
       };
     case "member":
     case "viewer":
@@ -63,6 +90,9 @@ export function getGuildPermissions(role: GuildRole | null): GuildPermissions {
         canManageTransactions: false,
         canManageLoot: false,
         canExportReports: false,
+        canManageInvites: false,
+        canViewAudit: false,
+        canViewGlobalAudit: false,
       };
   }
 }

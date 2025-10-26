@@ -1,19 +1,35 @@
-export type GuildRole = "guild_admin" | "officer" | "raider" | "member" | "viewer";
+
+export type UserRole = "super_admin" | "guild_admin" | "officer" | "raider" | "member" | "viewer";
+export type GuildRole = Exclude<UserRole, "super_admin">;
 export type MemberRole = "leader" | "officer" | "raider" | "casual";
 export type TransactionType = "income" | "expense" | "transfer";
 export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic";
+export type AssignmentSource = "invite" | "manual" | "seed" | "system";
+export type InviteStatus = "pending" | "revoked" | "used" | "expired" | "superseded";
+export type AuditAction =
+  | "ROLE_ASSIGNED"
+  | "ROLE_REVOKED"
+  | "INVITE_CREATED"
+  | "INVITE_REVOKED"
+  | "INVITE_ACCEPTED"
+  | "TRANSACTION_CONFIRMED";
 
 export interface AuthUser {
   id: string;
   email: string;
   display_name: string;
-  app_role: GuildRole | null;
+  app_role: UserRole | null;
 }
 
 export interface GuildRoleAssignment {
+  id: string;
   guild_id: string;
   user_id: string;
   role: GuildRole;
+  assigned_at: string;
+  assigned_by_user_id: string | null;
+  revoked_at: string | null;
+  source: AssignmentSource;
   user?: {
     email?: string;
     display_name?: string;
@@ -94,11 +110,31 @@ export interface MonthlySummaryPoint {
   expense: number;
 }
 
+export interface GuildInvite {
+  id: string;
+  guild_id: string;
+  email?: string | null;
+  default_role: GuildRole;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  status: InviteStatus;
+  created_by_user_id: string;
+  used_at?: string | null;
+  used_by_user_id?: string | null;
+  metadata?: Record<string, unknown>;
+  token?: string;
+}
+
 export interface AuditLog {
   id: string;
-  action: string;
-  payload: Record<string, unknown>;
-  user_name?: string;
+  guild_id?: string | null;
+  actor_user_id?: string | null;
+  actor_name?: string | null;
+  target_user_id?: string | null;
+  target_name?: string | null;
+  action: AuditAction;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 

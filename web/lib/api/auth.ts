@@ -1,10 +1,15 @@
-import type { AuthProfile, AuthUser, GuildRoleAssignment } from "@/lib/types";
+
+import type { AuthProfile, AuthUser, GuildRoleAssignment, GuildRole } from "@/lib/types";
 import { api } from "@/lib/api";
 import { toApiError } from "./errors";
 
-const ROLE_PRIORITY = ["guild_admin", "officer", "raider", "member", "viewer"] as const;
+const ROLE_PRIORITY: GuildRole[] = ["guild_admin", "officer", "raider", "member", "viewer"];
 
 function resolveEffectiveRole(profile: AuthProfile): AuthProfile {
+  if (profile.app_role === "super_admin") {
+    return profile;
+  }
+
   if (!profile.guild_roles?.length) {
     return {
       ...profile,
@@ -14,6 +19,7 @@ function resolveEffectiveRole(profile: AuthProfile): AuthProfile {
   const highest = profile.guild_roles
     .map((assignment: GuildRoleAssignment) => assignment.role)
     .sort((a, b) => ROLE_PRIORITY.indexOf(a) - ROLE_PRIORITY.indexOf(b))[0];
+
   return {
     ...profile,
     app_role: profile.app_role ?? highest ?? null,
@@ -66,4 +72,11 @@ export async function refreshSession(): Promise<void> {
 export async function fetchCurrentProfile(): Promise<AuthProfile> {
   const { data } = await api.get<AuthProfile>("/auth/me");
   return resolveEffectiveRole(data);
+}
+
+export async function acceptInvite(token: string): Promise<{ guild_id: string; role: GuildRole }> {
+  const { data } = await api.post<{ guild_id: string; role: GuildRole }>("/auth/accept-invite", {
+    token,
+  });
+  return data;
 }

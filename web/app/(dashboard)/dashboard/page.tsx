@@ -149,7 +149,7 @@ export default function DashboardPage() {
                 >
                   <p className="text-sm font-semibold text-foreground">{log.action}</p>
                   <p className="text-xs text-muted-foreground">
-                    {log.user_name ?? "System"} · {formatDateTime(log.created_at)}
+                    {(log.actor_name ?? "System") + " - " + formatDateTime(log.created_at)}
                   </p>
                 </div>
               ))}

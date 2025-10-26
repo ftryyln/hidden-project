@@ -222,9 +222,9 @@ export async function distributeLoot(
 
   await recordAuditLog(supabaseAdmin, {
     guildId,
-    userId,
-    action: "loot.distributed",
-    data: {
+    actorUserId: userId,
+    action: "LOOT_DISTRIBUTED",
+    metadata: {
       loot_id: payload.lootId,
       item_name: loot.item_name,
       total_share: totalShare,

@@ -6,6 +6,7 @@ import { ApiError } from "../errors.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthenticatedRequest } from "../middleware/auth.js";
 import { config } from "../env.js";
+import { acceptInviteForEmail, acceptInviteWithToken } from "../services/invites.js";
 import type { GuildRole } from "../types.js";
 
 const router = Router();
@@ -14,7 +15,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   display_name: z.string().min(1).max(120).optional(),
-  invite_token: z.string().uuid().optional(),
+  invite_token: z.string().trim().min(1).optional(),
 });
 
 router.post(
@@ -72,44 +73,37 @@ router.post(
       );
     }
 
-    let assignedAppRole: GuildRole = "member";
+    let assignedAppRole: GuildRole | null = null;
 
     if (invite_token) {
-      const { data: invite, error: inviteError } = await supabaseAdmin
-        .from("guild_invites")
-        .select("guild_id, default_role, valid_until, max_uses, uses")
-        .eq("id", invite_token)
-        .maybeSingle();
-
-      if (
-        !inviteError &&
-        invite &&
-        (!invite.valid_until || new Date(invite.valid_until) > new Date())
-      ) {
-        if (!invite.max_uses || (invite.uses ?? 0) < invite.max_uses) {
-          const role = (invite.default_role ?? "member") as GuildRole;
-          await supabaseAdmin.from("guild_user_roles").upsert(
-            {
-              guild_id: invite.guild_id,
-              user_id: userId,
-              role,
-            },
-            { onConflict: "guild_id,user_id" },
-          );
-          await supabaseAdmin
-            .from("guild_invites")
-            .update({ uses: (invite.uses ?? 0) + 1 })
-            .eq("id", invite_token);
-          assignedAppRole = role;
+      try {
+        const { role } = await acceptInviteWithToken(invite_token, userId, email);
+        assignedAppRole = role;
+      } catch (err) {
+        if (err instanceof ApiError) {
+          throw err;
         }
+        console.error("Failed to accept invite during registration", err);
+        throw new ApiError(500, "Unable to apply invite token");
       }
     }
 
-    await supabaseAdmin.auth.admin.updateUserById(userId, {
-      app_metadata: {
-        role: assignedAppRole,
-      },
-    });
+    if (!assignedAppRole) {
+      const autoInvite = await acceptInviteForEmail(email, userId);
+      if (autoInvite) {
+        assignedAppRole = autoInvite.role;
+      }
+    }
+
+    if (!assignedAppRole) {
+      assignedAppRole = "viewer";
+      await Promise.allSettled([
+        supabaseAdmin.from("profiles").update({ app_role: assignedAppRole }).eq("id", userId),
+        supabaseAdmin.auth.admin.updateUserById(userId, {
+          app_metadata: { role: assignedAppRole },
+        }),
+      ]);
+    }
 
     const session = await supabaseAuth.auth.signInWithPassword({
       email,
@@ -190,7 +184,15 @@ const resetSchema = z
   .refine((payload) => Boolean(payload.code) || Boolean(payload.access_token), {
     message: "Missing reset token",
     path: ["code"],
-  });
+  })
+  .refine(
+    (payload) =>
+      !payload.access_token || (payload.access_token && Boolean(payload.refresh_token)),
+    {
+      message: "Missing refresh token",
+      path: ["refresh_token"],
+    },
+  );
 
 router.post(
   "/auth/reset",
@@ -220,13 +222,14 @@ router.post(
       }
       session = exchange.data.session;
     } else if (access_token) {
+      const sessionPayload = {
+        access_token,
+        refresh_token: refresh_token!,
+      };
       const {
         data: sessionData,
         error: sessionError,
-      } = await supabaseAuth.auth.setSession({
-        access_token,
-        refresh_token: refresh_token ?? undefined,
-      });
+      } = await supabaseAuth.auth.setSession(sessionPayload);
       if (sessionError || !sessionData.session) {
         throw new ApiError(
           sessionError?.status ?? 400,
@@ -251,7 +254,7 @@ router.post(
 
     res.json({
       access_token: session.access_token,
-      refresh_token: session.refresh_token,
+      refresh_token: session.refresh_token ?? "",
       expires_in: session.expires_in,
       expires_at: session.expires_at ?? null,
       user: {
@@ -268,53 +271,31 @@ router.post(
   }),
 );
 
-router.get(
-  "/auth/register/invite/:token",
+router.post(
+  "/auth/accept-invite",
   requireAuth,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const token = req.params.token;
+    const acceptSchema = z.object({ token: z.string().trim().min(1) });
+    const parsed = acceptSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new ApiError(422, "validation error", parsed.error.flatten().fieldErrors);
+    }
+
     const user = req.user!;
-
-    const { data: invite, error } = await supabaseAdmin
-      .from("guild_invites")
-      .select("guild_id, default_role, valid_until, max_uses, uses")
-      .eq("id", token)
-      .maybeSingle();
-
-    if (error || !invite) {
-      throw new ApiError(404, "Invite not found or expired");
-    }
-
-    if (invite.valid_until && new Date(invite.valid_until) < new Date()) {
-      throw new ApiError(400, "Invite has expired");
-    }
-
-    if (invite.max_uses && (invite.uses ?? 0) >= invite.max_uses) {
-      throw new ApiError(400, "Invite has been used up");
-    }
-
-    const defaultRole = invite.default_role ?? "member";
-    const { error: upsertError } = await supabaseAdmin
-      .from("guild_user_roles")
-      .upsert(
-        {
-          guild_id: invite.guild_id,
-          user_id: user.id,
-          role: defaultRole,
-        },
-        { onConflict: "guild_id,user_id" },
+    try {
+      const { guildId, role } = await acceptInviteWithToken(
+        parsed.data.token,
+        user.id,
+        user.email ?? undefined,
       );
-
-    if (upsertError) {
-      throw new ApiError(500, "Failed to apply invite to guild");
+      res.json({ guild_id: guildId, role });
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw err;
+      }
+      console.error("Failed to accept invite", err);
+      throw new ApiError(500, "Unable to accept invite");
     }
-
-    await supabaseAdmin
-      .from("guild_invites")
-      .update({ uses: (invite.uses ?? 0) + 1 })
-      .eq("id", token);
-
-    res.json({ guild_id: invite.guild_id, role: defaultRole });
   }),
 );
 

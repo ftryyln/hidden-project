@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { ResetPasswordForm } from "@/components/forms/reset-password-form";
 import { useAuth } from "@/hooks/use-auth";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { AuthShell } from "@/components/auth/auth-shell";
 import Link from "next/link";
 
 type ResetCredentials = {
@@ -21,6 +14,22 @@ type ResetCredentials = {
 };
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordFallback() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900">
+      <p className="text-sm text-muted-foreground">Loading reset form...</p>
+    </main>
+  );
+}
+
+function ResetPasswordContent() {
   const { status } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,40 +81,22 @@ export default function ResetPasswordPage() {
   const hasCredentials = Boolean(credentials.code || credentials.access_token);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900">
-      <div className="absolute right-8 top-8 flex items-center gap-2">
-        <ThemeToggle />
-        <Link
-          href="/login"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          Back to login
-        </Link>
-      </div>
-      <Card className="w-full max-w-md bg-card/90 backdrop-blur">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">
-            Choose a new password
-          </CardTitle>
-          <CardDescription>
-            Enter your new password below. Once updated you will be redirected
-            to the dashboard.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {hasCredentials ? (
-            <ResetPasswordForm credentials={credentials} />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              This reset link is invalid or expired. Request a new one from the{" "}
-              <Link href="/forgot-password" className="underline">
-                forgot password page
-              </Link>
-              .
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+    <AuthShell
+      title="Choose a new password"
+      description="Enter your new password below. Once updated you will be redirected to the dashboard."
+      topLink={{ href: "/login", label: "Back to login" }}
+    >
+      {hasCredentials ? (
+        <ResetPasswordForm credentials={credentials} />
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          This reset link is invalid or expired. Request a new one from the{" "}
+          <Link href="/forgot-password" className="underline">
+            forgot password page
+          </Link>
+          .
+        </p>
+      )}
+    </AuthShell>
   );
 }

@@ -21,13 +21,34 @@ returns integer
 language sql
 immutable
 as $func$
-  select case role_in
+  select case role_in::text
+    when 'super_admin' then 900
     when 'guild_admin' then 500
     when 'officer'     then 400
     when 'raider'      then 300
     when 'member'      then 200
     when 'viewer'      then 100
+    else 0
   end;
+$func$;
+
+create or replace function public.user_has_min_role(
+  p_guild_id uuid,
+  min_role text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $func$
+begin
+  return public.user_has_min_role(p_guild_id, min_role::public.user_role);
+exception
+  when undefined_object then
+    return false;
+  when invalid_text_representation then
+    return false;
+end;
 $func$;
 
 -- Members can only be managed by guild admins.
@@ -88,7 +109,7 @@ update
 
 -- Loot management extends to raider role.
 drop policy if exists loot_records_modify on public.loot_records;
-create policy loot_records_modify on public.loot_records for all using (public.user_has_min_role(guild_id, 'raider')) with check (public.user_has_min_role(guild_id, 'raider'));
+create policy loot_records_modify on public.loot_records for all using (public.user_has_min_role(guild_id, 'raider'::text)) with check (public.user_has_min_role(guild_id, 'raider'::text));
 
 drop policy if exists loot_distribution_modify on public.loot_distribution;
 create policy loot_distribution_modify on public.loot_distribution for all using (
@@ -101,7 +122,7 @@ create policy loot_distribution_modify on public.loot_distribution for all using
             where
                 lr.id = loot_distribution.loot_id
         ),
-        'raider'
+        'raider'::text
     )
 ) with check (
     public.user_has_min_role(
@@ -113,6 +134,6 @@ create policy loot_distribution_modify on public.loot_distribution for all using
             where
                 lr.id = loot_distribution.loot_id
         ),
-        'raider'
+        'raider'::text
     )
 );

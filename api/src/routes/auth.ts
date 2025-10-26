@@ -1,8 +1,9 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { supabaseAdmin, supabaseAuth } from "../supabase.js";
+import { assignGuildUserRole } from "../services/guild-user-roles.js";
 import { ApiError } from "../errors.js";
 
 const router = Router();
@@ -32,7 +33,7 @@ async function ensureSeedAdmin(email: string, password: string) {
       email,
       password,
       email_confirm: true,
-      app_metadata: { role: "guild_admin" },
+      app_metadata: { role: "super_admin" },
       user_metadata: { display_name: "Seed Admin" },
     });
     if (createResult.error || !createResult.data?.user?.id) {
@@ -43,7 +44,7 @@ async function ensureSeedAdmin(email: string, password: string) {
   } else {
     const updateResult = await supabaseAdmin.auth.admin.updateUserById(userId, {
       password,
-      app_metadata: { role: "guild_admin" },
+      app_metadata: { role: "super_admin" },
       user_metadata: { display_name: "Seed Admin" },
       email_confirm: true,
     });
@@ -60,6 +61,7 @@ async function ensureSeedAdmin(email: string, password: string) {
     id: userId,
     email,
     display_name: "Seed Admin",
+    app_role: "super_admin" as const,
   };
 
   const { error: profileError } = await supabaseAdmin.from("profiles").upsert(profilePayload);
@@ -74,16 +76,15 @@ async function ensureSeedAdmin(email: string, password: string) {
   }
 
   if (guilds && guilds.length > 0) {
-    const upsertPayload = guilds.map((guild) => ({
-      guild_id: guild.id,
-      user_id: userId,
-      role: "guild_admin" as const,
-    }));
-    const { error: roleError } = await supabaseAdmin
-      .from("guild_user_roles")
-      .upsert(upsertPayload, { onConflict: "guild_id,user_id" });
-    if (roleError) {
-      console.warn("Failed to upsert admin guild roles", roleError);
+    for (const guild of guilds) {
+      try {
+        await assignGuildUserRole(guild.id, userId, "guild_admin", userId, {
+          source: "seed",
+          skipPermissionCheck: true,
+        });
+      } catch (roleError) {
+        console.warn("Failed to ensure admin guild role", roleError);
+      }
     }
   }
 }
@@ -217,7 +218,11 @@ router.get(
           .select("id, email, display_name")
           .eq("id", user.id)
           .maybeSingle(),
-        supabaseAdmin.from("guild_user_roles").select("guild_id, role").eq("user_id", user.id),
+        supabaseAdmin
+          .from("guild_user_roles")
+          .select("guild_id, role")
+          .eq("user_id", user.id)
+          .is("revoked_at", null),
       ]);
 
     if (profileError) {
