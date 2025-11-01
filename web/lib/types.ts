@@ -70,6 +70,22 @@ export interface AdminGuildSummary {
   updated_at: string;
 }
 
+export interface AdminUserAssignment {
+  guild_id: string;
+  guild_name: string;
+  guild_tag: string;
+  role: GuildRole;
+}
+
+export interface AdminUserSummary {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  app_role: UserRole | null;
+  created_at: string | null;
+  guilds: AdminUserAssignment[];
+}
+
 export interface Member {
   id: string;
   guild_id: string;

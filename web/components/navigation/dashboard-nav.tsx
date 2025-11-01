@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { LayoutGrid, Users, Receipt, Gem, BarChart3, ShieldCheck } from "lucide-react";
+import { LayoutGrid, Users, Receipt, Gem, BarChart3, ShieldCheck, UserCog } from "lucide-react";
 
 interface DashboardNavProps {
   guildId: string | null;
@@ -19,11 +19,14 @@ const baseLinks = [
   { href: "/guilds/[gid]/reports", label: "Reports", icon: BarChart3 },
 ];
 
+const adminLinks = [
+  { href: "/admin", label: "Admin Guilds", icon: ShieldCheck },
+  { href: "/admin/users", label: "Admin Users", icon: UserCog },
+];
+
 export function DashboardNav({ guildId, isSuperAdmin = false }: DashboardNavProps) {
   const pathname = usePathname();
-  const links = isSuperAdmin
-    ? [...baseLinks, { href: "/admin", label: "Admin", icon: ShieldCheck }]
-    : baseLinks;
+  const links = isSuperAdmin ? [...baseLinks, ...adminLinks] : baseLinks;
 
   return (
     <nav className="flex items-center gap-2">
