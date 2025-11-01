@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ interface DashboardNavProps {
   guildId: string | null;
   isSuperAdmin?: boolean;
   className?: string;
+  mobileExtras?: ReactNode;
 }
 
 const baseLinks = [
@@ -38,7 +39,12 @@ const adminLinks = [
   { href: "/admin/users", label: "Admin Users", icon: UserCog },
 ];
 
-export function DashboardNav({ guildId, isSuperAdmin = false, className }: DashboardNavProps) {
+export function DashboardNav({
+  guildId,
+  isSuperAdmin = false,
+  className,
+  mobileExtras,
+}: DashboardNavProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -112,10 +118,13 @@ export function DashboardNav({ guildId, isSuperAdmin = false, className }: Dashb
                 <span className="sr-only">Close navigation menu</span>
               </Button>
             </DialogHeader>
-            <div className="mt-4 grid gap-2">
-              {links.map(({ href, label, icon }) =>
-                renderLink(href, label, icon, "border border-border/60 bg-muted/30"),
-              )}
+            <div className="mt-4 grid gap-5">
+              {mobileExtras}
+              <div className="grid gap-2">
+                {links.map(({ href, label, icon }) =>
+                  renderLink(href, label, icon, "border border-border/60 bg-muted/30"),
+                )}
+              </div>
             </div>
           </DialogContent>
         </Dialog>

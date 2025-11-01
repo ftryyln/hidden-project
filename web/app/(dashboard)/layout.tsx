@@ -82,28 +82,63 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   const isSuperAdmin = user?.app_role === "super_admin";
+  const mobileMenuExtras = (
+    <div className="grid gap-4">
+      <div className="grid gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Selected guild
+        </span>
+        <GuildSwitcher
+          value={selectedGuild}
+          onChange={handleGuildChange}
+          className="w-full"
+        />
+      </div>
+      <div className="grid gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Profile
+        </span>
+        <UserMenu
+          showDetails
+          buttonProps={{
+            variant: "outline",
+            size: "default",
+            className:
+              "w-full justify-between rounded-2xl border-border/60 bg-muted/30 px-4 py-2 text-sm font-medium",
+          }}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <DashboardGuildProvider value={{ selectedGuild, changeGuild: handleGuildChange }}>
       <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
         <header className="sticky top-0 z-40 border-b border-border/40 bg-background/70 backdrop-blur-xl">
-          <div className="container flex flex-col gap-4 py-4">
-            <div className="flex w-full flex-wrap items-center gap-3 md:gap-4">
+          <div className="container flex flex-col gap-3 py-4">
+            <div className="flex items-center gap-3 md:gap-4">
               <h1 className="text-xl font-bold tracking-tight">Guild Manager</h1>
-              <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3">
+              <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                <ThemeToggle className="shrink-0" />
                 <DashboardNav
                   guildId={selectedGuild}
                   isSuperAdmin={isSuperAdmin}
-                  className="order-3 w-full justify-end md:order-none md:w-auto"
+                  mobileExtras={mobileMenuExtras}
                 />
-                <ThemeToggle className="order-1 shrink-0" />
-                <GuildSwitcher
-                  value={selectedGuild}
-                  onChange={handleGuildChange}
-                  className="order-2 shrink-0 min-w-[160px] sm:min-w-[220px]"
-                />
-                <UserMenu className="order-4 shrink-0" />
               </div>
+            </div>
+            <div className="hidden items-center gap-3 md:flex md:justify-end">
+              <GuildSwitcher
+                value={selectedGuild}
+                onChange={handleGuildChange}
+                className="w-full max-w-xs sm:max-w-sm"
+              />
+              <UserMenu
+                buttonProps={{
+                  size: "default",
+                  className: "rounded-full px-3",
+                }}
+              />
             </div>
           </div>
         </header>

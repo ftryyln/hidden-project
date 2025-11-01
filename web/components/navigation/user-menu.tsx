@@ -9,14 +9,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
 import { useToast } from "@/components/ui/use-toast";
 import { LogOut, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function UserMenu({ className }: { className?: string }) {
+interface UserMenuProps {
+  className?: string;
+  buttonProps?: ButtonProps;
+  showDetails?: boolean;
+}
+
+export function UserMenu({ className, buttonProps, showDetails = false }: UserMenuProps = {}) {
   const { user, logout } = useAuth();
   const toast = useToast();
 
@@ -35,15 +41,35 @@ export function UserMenu({ className }: { className?: string }) {
     });
   };
 
+  const {
+    variant = "ghost",
+    size = "default",
+    className: triggerClassName,
+    ...triggerRest
+  } = buttonProps ?? {};
+
+  const baseTriggerClasses =
+    size === "icon" ? "rounded-full" : "rounded-full px-3";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className={cn("shrink-0 rounded-full px-3", className)}>
+        <Button
+          variant={variant}
+          size={size}
+          className={cn("shrink-0", baseTriggerClasses, className, triggerClassName)}
+          {...triggerRest}
+        >
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9 border border-border/40">
               <AvatarFallback>{initials || "GM"}</AvatarFallback>
             </Avatar>
-            <div className="hidden text-left sm:block">
+            <div
+              className={cn(
+                "text-left",
+                showDetails ? "block" : "hidden sm:block",
+              )}
+            >
               <p className="text-sm font-semibold leading-tight">{user?.display_name ?? "Officer"}</p>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
