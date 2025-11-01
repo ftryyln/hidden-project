@@ -37,7 +37,7 @@ router.post(
       config.registrationRedirectUrl ??
       `${config.frontendUrl.replace(/\/$/, "")}/login`;
 
-    const { data, error } = await supabaseAuth.auth.signUp({
+    let { data, error } = await supabaseAuth.auth.signUp({
       email,
       password,
       options: {
@@ -50,10 +50,40 @@ router.post(
       },
     });
 
-    if (error || !data.user) {
+    if (error || !data?.user) {
+      if (
+        error?.message &&
+        error.message.toLowerCase().includes("database error finding user")
+      ) {
+        const created = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: false,
+          user_metadata: { display_name: displayName },
+          app_metadata: {},
+        });
+
+        if (created.error || !created.data?.user) {
+          throw new ApiError(
+            created.error?.status ?? 400,
+            created.error?.message ?? "Unable to register",
+          );
+        }
+
+        data = { user: created.data.user, session: null };
+        error = null;
+      } else {
+        throw new ApiError(
+          error?.status ?? 400,
+          error?.message ?? "Unable to register",
+        );
+      }
+    }
+
+    if (!data?.user) {
       throw new ApiError(
-        error?.status ?? 400,
-        error?.message ?? "Unable to register",
+        400,
+        "Unable to register",
       );
     }
 
