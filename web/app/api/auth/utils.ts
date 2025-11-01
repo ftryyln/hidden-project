@@ -31,7 +31,6 @@ export function applyAuthCookies(response: NextResponse, tokens: TokenPayload) {
   };
 
   const commonOptions = {
-    httpOnly: true,
     secure,
     sameSite: "lax" as const,
     path: "/",
@@ -60,7 +59,6 @@ export function clearAuthCookies(response: NextResponse) {
   const secure = process.env.NODE_ENV === "production";
 
   const commonOptions = {
-    httpOnly: true,
     secure,
     sameSite: "lax" as const,
     path: "/",
