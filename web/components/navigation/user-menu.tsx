@@ -14,8 +14,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
 import { useToast } from "@/components/ui/use-toast";
 import { LogOut, Shield } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export function UserMenu() {
+export function UserMenu({ className }: { className?: string }) {
   const { user, logout } = useAuth();
   const toast = useToast();
 
@@ -37,7 +38,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="shrink-0 rounded-full px-3">
+        <Button variant="ghost" className={cn("shrink-0 rounded-full px-3", className)}>
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9 border border-border/40">
               <AvatarFallback>{initials || "GM"}</AvatarFallback>

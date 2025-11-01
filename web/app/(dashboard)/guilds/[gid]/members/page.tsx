@@ -392,7 +392,7 @@ export default function GuildMembersPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Members</h1>
           <p className="text-sm text-muted-foreground">
@@ -437,14 +437,14 @@ export default function GuildMembersPage() {
         )}
       </header>
 
-      <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur">
+      <Card>
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle>Roster</CardTitle>
             <CardDescription>{total} members in total</CardDescription>
           </div>
 
-          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3">
             <div className="flex items-center rounded-full border border-border/60 bg-muted/20 px-3">
               <Search className="mr-2 h-4 w-4 text-muted-foreground" />
               <Input

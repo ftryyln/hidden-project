@@ -38,7 +38,13 @@ export function GuildSwitcher({ value, onChange, className }: GuildSwitcherProps
 
   return (
     <Select value={value ?? undefined} onValueChange={onChange}>
-      <SelectTrigger className={cn("h-11 rounded-full bg-muted/20 text-sm", "w-full sm:w-auto", className)}>
+      <SelectTrigger
+        className={cn(
+          "h-11 rounded-full bg-muted/20 text-sm px-4",
+          "w-auto min-w-[160px] sm:min-w-[220px]",
+          className,
+        )}
+      >
         <SelectValue placeholder="Select guild">{label}</SelectValue>
       </SelectTrigger>
       <SelectContent>

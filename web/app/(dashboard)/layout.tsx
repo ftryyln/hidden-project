@@ -88,17 +88,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
         <header className="sticky top-0 z-40 border-b border-border/40 bg-background/70 backdrop-blur-xl">
           <div className="container flex flex-col gap-4 py-4">
-            <div className="flex flex-wrap items-center gap-3 md:gap-4">
+            <div className="flex w-full flex-wrap items-center gap-3 md:gap-4">
               <h1 className="text-xl font-bold tracking-tight">Guild Manager</h1>
-              <div className="flex flex-1 flex-wrap items-center justify-end gap-3 md:gap-4">
-                <ThemeToggle />
+              <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3">
+                <DashboardNav
+                  guildId={selectedGuild}
+                  isSuperAdmin={isSuperAdmin}
+                  className="order-3 w-full justify-end md:order-none md:w-auto"
+                />
+                <ThemeToggle className="order-1 shrink-0" />
                 <GuildSwitcher
                   value={selectedGuild}
                   onChange={handleGuildChange}
-                  className="w-full min-w-[180px] flex-1 sm:w-auto sm:flex-none sm:min-w-[220px]"
+                  className="order-2 shrink-0 min-w-[160px] sm:min-w-[220px]"
                 />
-                <UserMenu />
-                <DashboardNav guildId={selectedGuild} isSuperAdmin={isSuperAdmin} className="flex-none" />
+                <UserMenu className="order-4 shrink-0" />
               </div>
             </div>
           </div>
