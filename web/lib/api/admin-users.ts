@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { AdminUserSummary, GuildRole } from "@/lib/types";
+import type { AdminUserSummary, GuildRole, UserRole } from "@/lib/types";
 
 export interface AssignUserPayload {
   guild_id: string;
@@ -24,4 +24,11 @@ export async function removeUserFromGuild(userId: string, guildId: string): Prom
 
 export async function deleteAdminUser(userId: string): Promise<void> {
   await api.delete(`/admin/users/${userId}`);
+}
+
+export async function updateAdminUserRole(
+  userId: string,
+  appRole: UserRole | null,
+): Promise<void> {
+  await api.patch(`/admin/users/${userId}`, { app_role: appRole });
 }

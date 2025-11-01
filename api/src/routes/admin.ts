@@ -15,6 +15,7 @@ import {
   assignUserToGuild,
   deleteAdminUser,
   listAdminUsers,
+  updateAdminUserRole,
   removeUserFromGuild,
 } from "../services/admin-users.js";
 
@@ -27,10 +28,15 @@ const guildUpsertSchema = z.object({
 });
 
 const guildRoleValues = ["guild_admin", "officer", "raider", "member", "viewer"] as const;
+const userRoleValues = ["super_admin", "guild_admin", "officer", "raider", "member", "viewer"] as const;
 
 const assignUserSchema = z.object({
   guild_id: z.string().uuid(),
   role: z.enum(guildRoleValues),
+});
+
+const updateUserRoleSchema = z.object({
+  app_role: z.enum(userRoleValues).nullable(),
 });
 
 router.get(
@@ -137,6 +143,21 @@ router.delete(
     const userId = ensureUuid(req.params.userId, "userId");
     await deleteAdminUser(req.user!.id, userId);
     res.status(204).send();
+  }),
+);
+
+router.patch(
+  "/admin/users/:userId",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    await requireSuperAdmin(req.user!.id);
+    const userId = ensureUuid(req.params.userId, "userId");
+    const parsed = updateUserRoleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw fromZodError(parsed.error);
+    }
+    const appRole = await updateAdminUserRole(req.user!.id, userId, parsed.data.app_role);
+    res.json({ app_role: appRole });
   }),
 );
 

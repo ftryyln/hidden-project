@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
   const guildName = useMemo(() => {
     const guild = guildsQuery.data?.find((g) => g.id === guildId);
-    return guild ? `${guild.name} - ${guild.role}` : "Guild overview";
+    return guild?.name ?? "Guild overview";
   }, [guildsQuery.data, guildId]);
 
   if (!guildId) {

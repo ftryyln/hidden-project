@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -18,9 +17,10 @@ import {
   deleteAdminUser,
   listAdminUsers,
   removeUserFromGuild,
+  updateAdminUserRole,
 } from "@/lib/api/admin-users";
 import { listAdminGuilds } from "@/lib/api/admin";
-import type { AdminGuildSummary, AdminUserSummary, GuildRole } from "@/lib/types";
+import type { AdminGuildSummary, AdminUserSummary, GuildRole, UserRole } from "@/lib/types";
 import { toApiError } from "@/lib/api/errors";
 import { Trash2, UserRoundX, PlusCircle, X } from "lucide-react";
 
@@ -30,6 +30,16 @@ const roleOptions: Array<{ value: GuildRole; label: string }> = [
   { value: "raider", label: "Raider" },
   { value: "member", label: "Member" },
   { value: "viewer", label: "Viewer" },
+];
+
+const appRoleOptions: Array<{ value: UserRole | "auto"; label: string }> = [
+  { value: "super_admin", label: "Super Admin" },
+  { value: "guild_admin", label: "Guild Admin" },
+  { value: "officer", label: "Officer" },
+  { value: "raider", label: "Raider" },
+  { value: "member", label: "Member" },
+  { value: "viewer", label: "Viewer" },
+  { value: "auto", label: "Auto (derive from guild access)" },
 ];
 
 function UsersSkeleton() {
@@ -255,6 +265,8 @@ export default function AdminUsersPage() {
 
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUserSummary | null>(null);
+  const [roleUpdatingUserId, setRoleUpdatingUserId] = useState<string | null>(null);
+  const [pendingAppRoles, setPendingAppRoles] = useState<Record<string, UserRole | "auto" | null>>({});
 
   const handleOpenAssign = (target: AdminUserSummary) => {
     setSelectedUser(target);
@@ -264,6 +276,43 @@ export default function AdminUsersPage() {
   const handleAssign = async (userId: string, guildId: string, role: GuildRole) => {
     await assignMutation.mutateAsync({ userId, guildId, role });
   };
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, appRole }: { userId: string; appRole: UserRole | null }) =>
+      updateAdminUserRole(userId, appRole),
+    onMutate: ({ userId, appRole }) => {
+      setRoleUpdatingUserId(userId);
+      setPendingAppRoles((prev) => ({
+        ...prev,
+        [userId]: appRole ?? "auto",
+      }));
+      return { userId };
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+      toast({
+        title: "User role updated",
+        description: "Application access role has been updated.",
+      });
+    },
+    onError: async (error) => {
+      const apiError = await toApiError(error);
+      toast({
+        title: "Unable to update role",
+        description: apiError.message,
+      });
+    },
+    onSettled: (_data, _error, _variables, context) => {
+      setRoleUpdatingUserId(null);
+      if (context?.userId) {
+        setPendingAppRoles((prev) => {
+          const next = { ...prev };
+          delete next[context.userId];
+          return next;
+        });
+      }
+    },
+  });
 
   const users = usersQuery.data ?? [];
   const guilds = guildsQuery.data ?? [];
@@ -312,6 +361,8 @@ export default function AdminUsersPage() {
                   ) : (
                     sortedUsers.map((entry) => {
                       const isCurrentUser = entry.id === user?.id;
+                      const currentAppRoleValue =
+                        pendingAppRoles[entry.id] ?? (entry.app_role ?? "auto");
                       return (
                         <TableRow key={entry.id}>
                           <TableCell>
@@ -320,11 +371,43 @@ export default function AdminUsersPage() {
                               <p className="text-xs text-muted-foreground">{entry.email ?? "Email unavailable"}</p>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant={entry.app_role === "super_admin" ? "secondary" : "outline"}>
-                              {entry.app_role ?? "unassigned"}
-                            </Badge>
-                          </TableCell>
+                      <TableCell>
+                        <Select
+                          value={currentAppRoleValue ?? "auto"}
+                          onValueChange={(value) => {
+                            if (value === "auto") {
+                              updateRoleMutation.mutate({ userId: entry.id, appRole: null });
+                              return;
+                            }
+                            updateRoleMutation.mutate({
+                              userId: entry.id,
+                              appRole: value as UserRole,
+                            });
+                          }}
+                          disabled={
+                            updateRoleMutation.isPending && roleUpdatingUserId === entry.id
+                          }
+                        >
+                          <SelectTrigger className="w-48">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {appRoleOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                disabled={
+                                  entry.id === user?.id &&
+                                  entry.app_role === "super_admin" &&
+                                  option.value !== "super_admin"
+                                }
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-2">
                               {entry.guilds.length === 0 && (

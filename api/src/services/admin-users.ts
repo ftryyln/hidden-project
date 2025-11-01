@@ -1,7 +1,7 @@
 import { ApiError } from "../errors.js";
 import { supabaseAdmin } from "../supabase.js";
 import type { GuildRole, UserRole } from "../types.js";
-import { assignGuildUserRole, revokeGuildUserRole } from "./guild-user-roles.js";
+import { assignGuildUserRole, revokeGuildUserRole, syncUserAppRole } from "./guild-user-roles.js";
 
 export interface AdminUserGuildAssignment {
   guild_id: string;
@@ -138,6 +138,79 @@ export async function removeUserFromGuild(actorId: string, userId: string, guild
   await ensureUserExists(userId);
   await ensureGuildExists(guildId);
   await revokeGuildUserRole(guildId, userId, actorId);
+}
+
+async function countOtherSuperAdmins(userId: string): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("app_role", "super_admin")
+    .neq("id", userId);
+
+  if (error) {
+    console.error("Failed to count remaining super admins", error);
+    throw new ApiError(500, "Unable to verify remaining super admins");
+  }
+
+  return count ?? 0;
+}
+
+export async function updateAdminUserRole(
+  actorId: string,
+  userId: string,
+  nextRole: UserRole | null,
+): Promise<UserRole | null> {
+  await ensureUserExists(userId);
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("app_role")
+    .eq("id", userId)
+    .maybeSingle<{ app_role: UserRole | null }>();
+
+  if (profileError) {
+    console.error("Failed to fetch user profile for role update", profileError);
+    throw new ApiError(500, "Unable to load user profile");
+  }
+
+  const currentRole = profile?.app_role ?? null;
+
+  if (currentRole === nextRole) {
+    return currentRole;
+  }
+
+  if (currentRole === "super_admin" && nextRole !== "super_admin") {
+    const remaining = await countOtherSuperAdmins(userId);
+    if (remaining === 0) {
+      throw new ApiError(400, "Cannot remove the last super admin");
+    }
+    if (actorId === userId) {
+      throw new ApiError(400, "Super admins cannot remove their own elevated access");
+    }
+  }
+
+  const [{ error: profileUpdateError }, { error: authUpdateError }] = await Promise.all([
+    supabaseAdmin.from("profiles").update({ app_role: nextRole }).eq("id", userId),
+    supabaseAdmin.auth.admin.updateUserById(userId, {
+      app_metadata: { role: nextRole ?? null },
+    }),
+  ]);
+
+  if (profileUpdateError) {
+    console.error("Failed to update profile app role", profileUpdateError);
+    throw new ApiError(500, "Unable to update user role");
+  }
+
+  if (authUpdateError) {
+    console.error("Failed to update auth app metadata", authUpdateError);
+    throw new ApiError(500, "Unable to update user role");
+  }
+
+  if (!nextRole || nextRole === "viewer") {
+    await syncUserAppRole(userId);
+  }
+
+  return nextRole ?? null;
 }
 
 export async function deleteAdminUser(actorId: string, userId: string): Promise<void> {
