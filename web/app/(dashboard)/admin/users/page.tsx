@@ -339,7 +339,7 @@ export default function AdminUsersPage() {
           {usersQuery.isLoading ? (
             <UsersSkeleton />
           ) : (
-            <div className="overflow-hidden rounded-xl border border-border/60">
+            <div className="overflow-x-auto rounded-xl border border-border/60">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/60">

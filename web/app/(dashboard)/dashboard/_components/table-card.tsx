@@ -41,32 +41,34 @@ export function TableCard({
             <Skeleton className="h-full w-full" />
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {columns.map((column) => (
-                  <TableHead key={column}>{column}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length > 0 ? (
-                rows.map((row) => (
-                  <TableRow key={row.key}>
-                    {row.cells.map((cell, index) => (
-                      <TableCell key={index}>{cell}</TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center text-sm text-muted-foreground">
-                    {emptyMessage}
-                  </TableCell>
+                  {columns.map((column) => (
+                    <TableHead key={column}>{column}</TableHead>
+                  ))}
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {rows.length > 0 ? (
+                  rows.map((row) => (
+                    <TableRow key={row.key}>
+                      {row.cells.map((cell, index) => (
+                        <TableCell key={index}>{cell}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="text-center text-sm text-muted-foreground">
+                      {emptyMessage}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>
