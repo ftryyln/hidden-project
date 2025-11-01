@@ -638,7 +638,8 @@ export default function TransactionsPage() {
 
           {!isLoading && transactions.length > 0 && (
 
-            <Table>
+            <div className="overflow-x-auto rounded-2xl border border-border/40">
+              <Table>
 
               <TableHeader>
 
@@ -802,7 +803,8 @@ export default function TransactionsPage() {
 
               </TableBody>
 
-            </Table>
+              </Table>
+            </div>
 
           )}
 

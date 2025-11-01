@@ -498,7 +498,8 @@ export default function GuildMembersPage() {
           )}
 
           {!isLoading && members.length > 0 && (
-            <Table>
+            <div className="overflow-x-auto rounded-2xl border border-border/40">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -574,7 +575,8 @@ export default function GuildMembersPage() {
                   );
                 })}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -663,7 +665,8 @@ export default function GuildMembersPage() {
             )}
 
             {!accessQuery.isLoading && accessControl.length > 0 && (
-              <Table>
+              <div className="overflow-x-auto rounded-2xl border border-border/40">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
@@ -740,7 +743,8 @@ export default function GuildMembersPage() {
                     );
                   })}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -854,7 +858,8 @@ export default function GuildMembersPage() {
             )}
 
             {!invitesLoading && invites.length > 0 && (
-              <Table>
+              <div className="overflow-x-auto rounded-2xl border border-border/40">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Recipient</TableHead>
@@ -908,7 +913,8 @@ export default function GuildMembersPage() {
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             )}
 
             {!invitesLoading && invites.length === 0 && (

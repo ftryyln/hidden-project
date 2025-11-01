@@ -341,7 +341,8 @@ export default function LootPage() {
             </div>
           )}
           {!isLoading && lootItems.length > 0 && (
-            <Table>
+            <div className="overflow-x-auto rounded-2xl border border-border/40">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
@@ -412,7 +413,8 @@ export default function LootPage() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -479,4 +481,3 @@ export default function LootPage() {
     </div>
   );
 }
-

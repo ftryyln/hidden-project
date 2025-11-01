@@ -88,12 +88,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
         <header className="sticky top-0 z-40 border-b border-border/40 bg-background/70 backdrop-blur-xl">
           <div className="container flex flex-col gap-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <h1 className="text-xl font-bold tracking-tight">Guild Manager</h1>
                 <ThemeToggle />
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <GuildSwitcher value={selectedGuild} onChange={handleGuildChange} />
                 <UserMenu />
               </div>
