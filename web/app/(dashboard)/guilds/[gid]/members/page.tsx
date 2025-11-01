@@ -578,7 +578,7 @@ export default function GuildMembersPage() {
           )}
         </CardContent>
       </Card>
-      <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+      <div className="grid gap-6">
         <Card className="rounded-3xl border border-border/60 bg-card/80 backdrop-blur">
           <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">

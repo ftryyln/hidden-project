@@ -25,7 +25,7 @@ export function GuildSwitcher({ value, onChange, className }: GuildSwitcherProps
   const label = useMemo(() => {
     const selected = guilds.find((guild) => guild.id === value);
     if (!selected) return "Select guild";
-    return `${selected.tag ? `[${selected.tag}] ` : ""}${selected.name}`;
+    return selected.name;
   }, [value, guilds]);
 
   if (isLoading) {
@@ -44,8 +44,7 @@ export function GuildSwitcher({ value, onChange, className }: GuildSwitcherProps
       <SelectContent>
         {guilds.map((guild) => (
           <SelectItem key={guild.id} value={guild.id}>
-            {guild.tag ? `[${guild.tag}] ` : ""}
-            {guild.name} — {guild.role}
+            {guild.name}
           </SelectItem>
         ))}
       </SelectContent>
