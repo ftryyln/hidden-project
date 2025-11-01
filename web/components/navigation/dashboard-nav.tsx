@@ -7,17 +7,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import {
-  LayoutGrid,
-  Users,
-  Receipt,
-  Gem,
-  BarChart3,
-  ShieldCheck,
-  UserCog,
-  Menu,
-  X,
-} from "lucide-react";
+import { LayoutGrid, Users, Receipt, Gem, BarChart3, ShieldCheck, UserCog, Menu, X } from "lucide-react";
 
 interface DashboardNavProps {
   guildId: string | null;
@@ -106,7 +96,7 @@ export function DashboardNav({
           </DialogTrigger>
           <DialogContent className="sm:max-w-sm">
             <DialogHeader className="flex flex-row items-center justify-between space-y-0">
-              <DialogTitle className="text-left text-base font-semibold">Navigation</DialogTitle>
+              <DialogTitle className="text-left text-base font-semibold">Menu</DialogTitle>
               <Button
                 type="button"
                 variant="ghost"
