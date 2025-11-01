@@ -101,7 +101,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             <DashboardNav guildId={selectedGuild} isSuperAdmin={isSuperAdmin} />
           </div>
         </header>
-        <main className="container flex-1 py-8">{children}</main>
+        <main className="container flex-1 px-4 py-8 sm:px-6">{children}</main>
       </div>
     </DashboardGuildProvider>
   );
