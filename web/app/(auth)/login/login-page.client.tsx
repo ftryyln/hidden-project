@@ -30,6 +30,11 @@ export function LoginPageClient() {
         <Link href="/forgot-password" className="underline">
           Forgot your password?
         </Link>
+        <div className="mt-2">
+          <Link href="/verify-email" className="underline">
+            Didn&apos;t get a verification email?
+          </Link>
+        </div>
       </div>
       <p className="mt-6 flex flex-col items-center gap-1 text-center text-xs text-muted-foreground">
         <span>Created by Kyuto Fit</span>

@@ -56,6 +56,19 @@ export function RegisterForm() {
         }),
       });
 
+      if (response.status === 202) {
+        const payload = (await response.json().catch(() => null)) as {
+          email?: string;
+        } | null;
+
+        toast({
+          title: "Verify your email",
+          description: `We sent a verification link to ${payload?.email ?? values.email}. Please confirm your address to continue.`,
+        });
+        router.replace(`/verify-email?email=${encodeURIComponent(values.email)}`);
+        return;
+      }
+
       if (!response.ok) {
         throw await toApiError(response);
       }
@@ -69,7 +82,7 @@ export function RegisterForm() {
     } catch (error) {
       const apiError = await toApiError(error);
       toast({
-        title: "Registration failed",
+        title: "Unable to register",
         description: apiError.message,
       });
     } finally {

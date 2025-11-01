@@ -18,6 +18,16 @@ const registerSchema = z.object({
   invite_token: z.string().trim().min(1).optional(),
 });
 
+const resendVerificationSchema = z.object({
+  email: z.string().email(),
+});
+
+function resolveRegistrationRedirect(): string {
+  return (
+    config.registrationRedirectUrl ?? `${config.frontendUrl.replace(/\/$/, "")}/login`
+  );
+}
+
 router.post(
   "/auth/register",
   asyncHandler(async (req, res) => {
@@ -33,9 +43,7 @@ router.post(
     const { email, password, display_name, invite_token } = parsed.data;
 
     const displayName = display_name ?? email.split("@")[0];
-    const registrationRedirect =
-      config.registrationRedirectUrl ??
-      `${config.frontendUrl.replace(/\/$/, "")}/login`;
+    const registrationRedirect = resolveRegistrationRedirect();
 
     let { data, error } = await supabaseAuth.auth.signUp({
       email,
@@ -139,6 +147,29 @@ router.post(
       email,
       password,
     });
+
+    const signInErrorMessage = session.error?.message?.toLowerCase() ?? "";
+    const requiresVerification =
+      signInErrorMessage.includes("email not confirmed") ||
+      signInErrorMessage.includes("email confirmation required");
+
+    if (requiresVerification) {
+      const resendResult = await supabaseAuth.auth.resend({
+        type: "signup",
+        email,
+        options: registrationRedirect ? { emailRedirectTo: registrationRedirect } : undefined,
+      });
+      if (resendResult.error) {
+        console.warn("Failed to resend verification email", resendResult.error);
+      }
+      res.status(202).json({
+        requires_verification: true,
+        message: "Email verification required",
+        email,
+      });
+      return;
+    }
+
     if (session.error || !session.data.session) {
       throw new ApiError(
         400,
@@ -164,6 +195,32 @@ router.post(
         app_role: user.app_metadata?.role ?? null,
       },
     });
+  }),
+);
+
+router.post(
+  "/auth/resend-verification",
+  asyncHandler(async (req, res) => {
+    const parsed = resendVerificationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new ApiError(422, "validation error", parsed.error.flatten().fieldErrors);
+    }
+
+    const registrationRedirect = resolveRegistrationRedirect();
+    const result = await supabaseAuth.auth.resend({
+      type: "signup",
+      email: parsed.data.email,
+      options: registrationRedirect ? { emailRedirectTo: registrationRedirect } : undefined,
+    });
+
+    if (result.error) {
+      throw new ApiError(
+        result.error.status ?? 400,
+        result.error.message ?? "Unable to resend verification email",
+      );
+    }
+
+    res.status(202).json({ message: "Verification email sent" });
   }),
 );
 
