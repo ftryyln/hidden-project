@@ -8,9 +8,41 @@ interface TokenPayload {
   expires_at?: number | string | null;
 }
 
-export function applyAuthCookies(response: NextResponse, tokens: TokenPayload) {
+function normalizeHost(host?: string | null): string | undefined {
+  if (!host) return undefined;
+  return host.split(":")[0]?.toLowerCase();
+}
+
+function resolveCookieDomain(preferred?: string, requestHost?: string | null): string | undefined {
+  if (!preferred || preferred.trim() === "") {
+    return undefined;
+  }
+  const candidate = preferred.trim();
+  const normalizedCandidate = candidate.replace(/^\./, "").toLowerCase();
+  const normalizedHost = normalizeHost(requestHost);
+
+  if (!normalizedHost) {
+    return candidate;
+  }
+
+  if (
+    normalizedHost === normalizedCandidate ||
+    normalizedHost.endsWith(`.${normalizedCandidate}`)
+  ) {
+    return candidate;
+  }
+
+  return undefined;
+}
+
+export function applyAuthCookies(
+  response: NextResponse,
+  tokens: TokenPayload,
+  requestHost?: string | null,
+) {
   const { JWT_COOKIE_NAME, JWT_REFRESH_COOKIE_NAME, COOKIE_DOMAIN } = getServerEnv();
   const secure = process.env.NODE_ENV === "production";
+  const domain = resolveCookieDomain(COOKIE_DOMAIN, requestHost);
 
   const computeExpiry = (): Date | undefined => {
     if (tokens.expires_at) {
@@ -34,7 +66,7 @@ export function applyAuthCookies(response: NextResponse, tokens: TokenPayload) {
     secure,
     sameSite: "lax" as const,
     path: "/",
-    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
+    ...(domain ? { domain } : {}),
   };
 
   const expires = computeExpiry();
@@ -54,16 +86,17 @@ export function applyAuthCookies(response: NextResponse, tokens: TokenPayload) {
   }
 }
 
-export function clearAuthCookies(response: NextResponse) {
+export function clearAuthCookies(response: NextResponse, requestHost?: string | null) {
   const { JWT_COOKIE_NAME, JWT_REFRESH_COOKIE_NAME, COOKIE_DOMAIN } = getServerEnv();
   const secure = process.env.NODE_ENV === "production";
+  const domain = resolveCookieDomain(COOKIE_DOMAIN, requestHost);
 
   const commonOptions = {
     secure,
     sameSite: "lax" as const,
     path: "/",
     expires: new Date(0),
-    ...(COOKIE_DOMAIN ? { domain: COOKIE_DOMAIN } : {}),
+    ...(domain ? { domain } : {}),
   };
 
   response.cookies.set({

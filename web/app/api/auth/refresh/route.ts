@@ -5,7 +5,7 @@ import { applyAuthCookies } from "@/app/api/auth/utils";
 import { cookies } from "next/headers";
 import { getServerEnv } from "@/lib/env";
 
-export async function POST() {
+export async function POST(request: Request) {
   const { JWT_REFRESH_COOKIE_NAME } = getServerEnv();
   const cookieJar = await cookies();
   const refreshToken = cookieJar.get(JWT_REFRESH_COOKIE_NAME)?.value;
@@ -42,11 +42,15 @@ export async function POST() {
   };
 
   const nextResponse = NextResponse.json({ user: data.user });
-  applyAuthCookies(nextResponse, {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token ?? refreshToken,
-    expires_in: data.expires_in,
-    expires_at: data.expires_at,
-  });
+  applyAuthCookies(
+    nextResponse,
+    {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token ?? refreshToken,
+      expires_in: data.expires_in,
+      expires_at: data.expires_at,
+    },
+    request.headers.get("host"),
+  );
   return nextResponse;
 }

@@ -4,10 +4,11 @@ import { toApiError } from "@/lib/api/errors";
 import { clearAuthCookies } from "@/app/api/auth/utils";
 import { cookies } from "next/headers";
 
-export async function POST() {
+export async function POST(request: Request) {
   const { JWT_REFRESH_COOKIE_NAME } = getServerEnv();
   const cookieJar = await cookies();
   const refreshToken = cookieJar.get(JWT_REFRESH_COOKIE_NAME)?.value;
+  const host = request.headers.get("host");
 
   let response: Response;
 
@@ -22,7 +23,7 @@ export async function POST() {
   } catch (error) {
     console.error("Failed to reach auth logout endpoint", error);
     const failed = NextResponse.json({ message: "Unable to contact auth service" }, { status: 502 });
-    clearAuthCookies(failed);
+    clearAuthCookies(failed, host);
     return failed;
   }
 
@@ -32,11 +33,11 @@ export async function POST() {
       { message: error.message, errors: error.details },
       { status: error.status },
     );
-    clearAuthCookies(failed);
+    clearAuthCookies(failed, host);
     return failed;
   }
 
   const success = new NextResponse(null, { status: 204 });
-  clearAuthCookies(success);
+  clearAuthCookies(success, host);
   return success;
 }
