@@ -17,9 +17,12 @@ interface KpiGridProps {
 
 export function KpiGrid({ items, loading }: KpiGridProps) {
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {items.map((item) => (
-        <Card key={item.title} className="relative overflow-hidden">
+        <Card
+          key={item.title}
+          className="relative overflow-hidden rounded-3xl border border-border/50 bg-card/80 backdrop-blur"
+        >
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-3 text-sm uppercase tracking-wide">
               {item.icon}

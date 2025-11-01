@@ -37,7 +37,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="rounded-full px-3">
+        <Button variant="ghost" className="shrink-0 rounded-full px-3">
           <div className="flex items-center gap-3">
             <Avatar className="h-9 w-9 border border-border/40">
               <AvatarFallback>{initials || "GM"}</AvatarFallback>

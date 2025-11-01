@@ -22,6 +22,7 @@ import {
 interface DashboardNavProps {
   guildId: string | null;
   isSuperAdmin?: boolean;
+  className?: string;
 }
 
 const baseLinks = [
@@ -37,7 +38,7 @@ const adminLinks = [
   { href: "/admin/users", label: "Admin Users", icon: UserCog },
 ];
 
-export function DashboardNav({ guildId, isSuperAdmin = false }: DashboardNavProps) {
+export function DashboardNav({ guildId, isSuperAdmin = false, className }: DashboardNavProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -79,7 +80,7 @@ export function DashboardNav({ guildId, isSuperAdmin = false }: DashboardNavProp
   };
 
   return (
-    <>
+    <div className={cn("flex items-center justify-end gap-2", className)}>
       <nav className="hidden items-center gap-2 md:flex">
         {links.map(({ href, label, icon }) => renderLink(href, label, icon))}
       </nav>
@@ -119,6 +120,6 @@ export function DashboardNav({ guildId, isSuperAdmin = false }: DashboardNavProp
           </DialogContent>
         </Dialog>
       </div>
-    </>
+    </div>
   );
 }

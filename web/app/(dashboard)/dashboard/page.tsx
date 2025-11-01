@@ -65,7 +65,7 @@ export default function DashboardPage() {
   const data = dashboardQuery.data;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <DashboardHeader
         title={guildName}
         description="Track guild health, cash flow, and loot distribution in real time."
