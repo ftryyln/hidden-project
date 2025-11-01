@@ -32,6 +32,15 @@ export async function createLoot(
   return data;
 }
 
+export async function updateLoot(
+  guildId: string,
+  lootId: string,
+  payload: CreateLootPayload,
+): Promise<LootRecord> {
+  const { data } = await api.patch<LootRecord>(`/guilds/${guildId}/loot/${lootId}`, payload);
+  return data;
+}
+
 export async function distributeLoot(
   guildId: string,
   payload: DistributeLootPayload,
@@ -41,4 +50,8 @@ export async function distributeLoot(
     payload,
   );
   return data;
+}
+
+export async function deleteLoot(guildId: string, lootId: string): Promise<void> {
+  await api.delete(`/guilds/${guildId}/loot/${lootId}`);
 }

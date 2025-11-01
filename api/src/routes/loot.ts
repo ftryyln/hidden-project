@@ -5,7 +5,7 @@ import { ensureUuid } from "../utils/validation.js";
 import { requireGuildRole } from "../services/access.js";
 import { supabaseAdmin } from "../supabase.js";
 import { lootCreateSchema, lootDistributionSchema } from "../validators/schemas.js";
-import { createLoot, distributeLoot, listLoot } from "../services/loot.js";
+import { createLoot, deleteLoot, distributeLoot, listLoot, updateLoot } from "../services/loot.js";
 import { ApiError, fromZodError } from "../errors.js";
 
 const router = Router();
@@ -44,8 +44,30 @@ router.post(
       throw fromZodError(parsed.error);
     }
 
-    const loot = await createLoot(guildId, parsed.data);
+    const loot = await createLoot(guildId, req.user!.id, parsed.data);
     res.status(201).json(loot);
+  }),
+);
+
+router.patch(
+  "/guilds/:guildId/loot/:lootId",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const guildId = ensureUuid(req.params.guildId, "guildId");
+    const lootId = ensureUuid(req.params.lootId, "lootId");
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, [
+      "guild_admin",
+      "officer",
+      "raider",
+    ]);
+
+    const parsed = lootCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw fromZodError(parsed.error);
+    }
+
+    const loot = await updateLoot(guildId, lootId, req.user!.id, parsed.data);
+    res.json(loot);
   }),
 );
 
@@ -77,6 +99,23 @@ router.post(
       distributions: parsed.data.distributions,
     });
     res.json(loot);
+  }),
+);
+
+router.delete(
+  "/guilds/:guildId/loot/:lootId",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const guildId = ensureUuid(req.params.guildId, "guildId");
+    const lootId = ensureUuid(req.params.lootId, "lootId");
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, [
+      "guild_admin",
+      "officer",
+      "raider",
+    ]);
+
+    await deleteLoot(guildId, lootId, req.user!.id);
+    res.status(204).send();
   }),
 );
 

@@ -112,7 +112,144 @@ export async function createTransaction(
     throw new ApiError(500, "Unable to create transaction");
   }
 
+  await recordAuditLog(supabaseAdmin, {
+    guildId,
+    actorUserId: userId,
+    action: "TRANSACTION_CREATED",
+    metadata: {
+      transaction_id: data.id,
+      tx_type: payload.tx_type,
+      category: payload.category,
+      amount: payload.amount,
+      description: payload.description ?? null,
+      evidence_path: payload.evidence_path ?? null,
+    },
+  });
+
   return mapTransaction(data);
+}
+
+export async function updateTransaction(
+  guildId: string,
+  transactionId: string,
+  actorId: string,
+  payload: CreateTransactionPayload,
+): Promise<Transaction> {
+  const { data: existing, error: loadError } = await supabaseAdmin
+    .from("transactions")
+    .select("id, guild_id, tx_type, category, amount, description, evidence_path, confirmed")
+    .eq("id", transactionId)
+    .maybeSingle();
+
+  if (loadError) {
+    console.error("Failed to load transaction for update", loadError);
+    throw new ApiError(500, "Unable to load transaction");
+  }
+
+  if (!existing || existing.guild_id !== guildId) {
+    throw new ApiError(404, "Transaction not found");
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("transactions")
+    .update({
+      tx_type: payload.tx_type,
+      category: payload.category,
+      amount: payload.amount,
+      description: payload.description ?? null,
+      evidence_path: payload.evidence_path ?? null,
+    })
+    .eq("id", transactionId)
+    .select(
+      "id, guild_id, created_at, tx_type, category, amount, description, confirmed, confirmed_at, created_by, evidence_path, profiles:profiles!transactions_created_by_fkey(display_name,email)",
+    )
+    .single();
+
+  if (error) {
+    console.error("Failed to update transaction", error);
+    throw new ApiError(500, "Unable to update transaction");
+  }
+
+  const changes: Record<string, { previous: unknown; next: unknown }> = {};
+  if (existing.tx_type !== payload.tx_type) {
+    changes.tx_type = { previous: existing.tx_type, next: payload.tx_type };
+  }
+  if (existing.category !== payload.category) {
+    changes.category = { previous: existing.category, next: payload.category };
+  }
+  if (Number(existing.amount) !== payload.amount) {
+    changes.amount = { previous: Number(existing.amount), next: payload.amount };
+  }
+  if ((existing.description ?? null) !== (payload.description ?? null)) {
+    changes.description = {
+      previous: existing.description ?? null,
+      next: payload.description ?? null,
+    };
+  }
+  if ((existing.evidence_path ?? null) !== (payload.evidence_path ?? null)) {
+    changes.evidence_path = {
+      previous: existing.evidence_path ?? null,
+      next: payload.evidence_path ?? null,
+    };
+  }
+
+  if (Object.keys(changes).length > 0) {
+    await recordAuditLog(supabaseAdmin, {
+      guildId,
+      actorUserId: actorId,
+      action: "TRANSACTION_UPDATED",
+      metadata: {
+        transaction_id: transactionId,
+        changes,
+      },
+    });
+  }
+
+  return mapTransaction(data);
+}
+
+export async function deleteTransaction(
+  guildId: string,
+  transactionId: string,
+  actorId: string,
+): Promise<void> {
+  const { data: existing, error: loadError } = await supabaseAdmin
+    .from("transactions")
+    .select("id, guild_id, tx_type, category, amount, description, confirmed")
+    .eq("id", transactionId)
+    .maybeSingle();
+
+  if (loadError) {
+    console.error("Failed to load transaction for delete", loadError);
+    throw new ApiError(500, "Unable to load transaction");
+  }
+
+  if (!existing || existing.guild_id !== guildId) {
+    throw new ApiError(404, "Transaction not found");
+  }
+
+  if (existing.confirmed) {
+    throw new ApiError(400, "Cannot delete a confirmed transaction");
+  }
+
+  const { error } = await supabaseAdmin.from("transactions").delete().eq("id", transactionId);
+  if (error) {
+    console.error("Failed to delete transaction", error);
+    throw new ApiError(500, "Unable to delete transaction");
+  }
+
+  await recordAuditLog(supabaseAdmin, {
+    guildId,
+    actorUserId: actorId,
+    action: "TRANSACTION_DELETED",
+    metadata: {
+      transaction_id: transactionId,
+      tx_type: existing.tx_type,
+      category: existing.category,
+      amount: Number(existing.amount ?? 0),
+      description: existing.description ?? null,
+    },
+  });
 }
 
 export async function confirmTransaction(
@@ -158,16 +295,6 @@ export async function confirmTransaction(
     console.error("Failed to confirm transaction", error);
     throw new ApiError(500, "Unable to confirm transaction");
   }
-
-  await recordAuditLog(supabaseAdmin, {
-    guildId,
-    actorUserId: userId,
-    action: "TRANSACTION_CONFIRMED",
-    metadata: {
-      transaction_id: transactionId,
-      confirmed_at: confirmedAt,
-    },
-  });
 
   return mapTransaction(data);
 }

@@ -55,6 +55,7 @@ export interface CreateLootPayload {
 
 export async function createLoot(
   guildId: string,
+  actorId: string,
   payload: CreateLootPayload,
 ): Promise<LootRecord> {
   const { data, error } = await supabaseAdmin
@@ -75,7 +76,138 @@ export async function createLoot(
     throw new ApiError(500, "Unable to create loot record");
   }
 
+  await recordAuditLog(supabaseAdmin, {
+    guildId,
+    actorUserId: actorId,
+    action: "LOOT_CREATED",
+    metadata: {
+      loot_id: data.id,
+      boss_name: payload.boss_name,
+      item_name: payload.item_name,
+      item_rarity: payload.item_rarity,
+      estimated_value: payload.estimated_value,
+    },
+  });
+
   return mapLoot(data);
+}
+
+export async function updateLoot(
+  guildId: string,
+  lootId: string,
+  actorId: string,
+  payload: CreateLootPayload,
+): Promise<LootRecord> {
+  const { data: existing, error: loadError } = await supabaseAdmin
+    .from("loot_records")
+    .select("id, guild_id, boss_name, item_name, item_rarity, estimated_value, notes, distributed")
+    .eq("id", lootId)
+    .maybeSingle();
+
+  if (loadError) {
+    console.error("Failed to load loot record for update", loadError);
+    throw new ApiError(500, "Unable to load loot record");
+  }
+
+  if (!existing || existing.guild_id !== guildId) {
+    throw new ApiError(404, "Loot record not found");
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("loot_records")
+    .update({
+      boss_name: payload.boss_name,
+      item_name: payload.item_name,
+      item_rarity: payload.item_rarity,
+      estimated_value: payload.estimated_value,
+      notes: payload.notes ?? null,
+    })
+    .eq("id", lootId)
+    .select(
+      "id, guild_id, created_at, boss_name, item_name, item_rarity, estimated_value, distributed, distributed_at, notes",
+    )
+    .single();
+
+  if (error) {
+    console.error("Failed to update loot", error);
+    throw new ApiError(500, "Unable to update loot record");
+  }
+
+  const changes: Record<string, { previous: unknown; next: unknown }> = {};
+  if ((existing.boss_name ?? "") !== payload.boss_name) {
+    changes.boss_name = { previous: existing.boss_name ?? "", next: payload.boss_name };
+  }
+  if ((existing.item_name ?? "") !== payload.item_name) {
+    changes.item_name = { previous: existing.item_name ?? "", next: payload.item_name };
+  }
+  if (existing.item_rarity !== payload.item_rarity) {
+    changes.item_rarity = { previous: existing.item_rarity, next: payload.item_rarity };
+  }
+  if (Number(existing.estimated_value ?? 0) !== payload.estimated_value) {
+    changes.estimated_value = {
+      previous: Number(existing.estimated_value ?? 0),
+      next: payload.estimated_value,
+    };
+  }
+  if ((existing.notes ?? null) !== (payload.notes ?? null)) {
+    changes.notes = { previous: existing.notes ?? null, next: payload.notes ?? null };
+  }
+
+  if (Object.keys(changes).length > 0) {
+    await recordAuditLog(supabaseAdmin, {
+      guildId,
+      actorUserId: actorId,
+      action: "LOOT_UPDATED",
+      metadata: {
+        loot_id: lootId,
+        changes,
+      },
+    });
+  }
+
+  return mapLoot(data);
+}
+
+export async function deleteLoot(
+  guildId: string,
+  lootId: string,
+  actorId: string,
+): Promise<void> {
+  const { data: existing, error: loadError } = await supabaseAdmin
+    .from("loot_records")
+    .select("id, guild_id, item_name, boss_name, distributed")
+    .eq("id", lootId)
+    .maybeSingle();
+
+  if (loadError) {
+    console.error("Failed to load loot record for delete", loadError);
+    throw new ApiError(500, "Unable to load loot record");
+  }
+
+  if (!existing || existing.guild_id !== guildId) {
+    throw new ApiError(404, "Loot record not found");
+  }
+
+  if (existing.distributed) {
+    throw new ApiError(400, "Cannot delete loot that has already been distributed");
+  }
+
+  const { error } = await supabaseAdmin.from("loot_records").delete().eq("id", lootId);
+  if (error) {
+    console.error("Failed to delete loot", error);
+    throw new ApiError(500, "Unable to delete loot record");
+  }
+
+  await recordAuditLog(supabaseAdmin, {
+    guildId,
+    actorUserId: actorId,
+    action: "LOOT_DELETED",
+    metadata: {
+      loot_id: lootId,
+      item_name: existing.item_name,
+      boss_name: existing.boss_name,
+    },
+  });
 }
 
 export interface DistributeLootPayload {

@@ -12,7 +12,17 @@ export type AuditAction =
   | "INVITE_CREATED"
   | "INVITE_REVOKED"
   | "INVITE_ACCEPTED"
-  | "TRANSACTION_CONFIRMED";
+  | "GUILD_CREATED"
+  | "GUILD_UPDATED"
+  | "GUILD_DELETED"
+  | "TRANSACTION_CREATED"
+  | "TRANSACTION_UPDATED"
+  | "TRANSACTION_DELETED"
+  | "TRANSACTION_CONFIRMED"
+  | "LOOT_CREATED"
+  | "LOOT_UPDATED"
+  | "LOOT_DELETED"
+  | "LOOT_DISTRIBUTED";
 
 export interface AuthUser {
   id: string;
@@ -47,6 +57,17 @@ export interface GuildSummary {
   balance: number;
   member_count: number;
   role: GuildRole;
+}
+
+export interface AdminGuildSummary {
+  id: string;
+  name: string;
+  tag: string;
+  description?: string | null;
+  member_count: number;
+  admin_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Member {

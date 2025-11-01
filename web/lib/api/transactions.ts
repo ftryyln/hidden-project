@@ -43,6 +43,18 @@ export async function createTransaction(
   return data;
 }
 
+export async function updateTransaction(
+  guildId: string,
+  transactionId: string,
+  payload: CreateTransactionPayload,
+): Promise<Transaction> {
+  const { data } = await api.patch<Transaction>(
+    `/guilds/${guildId}/transactions/${transactionId}`,
+    payload,
+  );
+  return data;
+}
+
 export async function confirmTransaction(
   guildId: string,
   transactionId: string,
@@ -52,4 +64,11 @@ export async function confirmTransaction(
     {},
   );
   return data;
+}
+
+export async function deleteTransaction(
+  guildId: string,
+  transactionId: string,
+): Promise<void> {
+  await api.delete(`/guilds/${guildId}/transactions/${transactionId}`);
 }

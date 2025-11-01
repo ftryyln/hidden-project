@@ -47,3 +47,9 @@ export async function requireGuildRole(
 
   return data.role as GuildRole;
 }
+
+export async function requireSuperAdmin(userId: string): Promise<void> {
+  if (!(await userIsSuperAdmin(userId))) {
+    throw new ApiError(403, "Forbidden");
+  }
+}

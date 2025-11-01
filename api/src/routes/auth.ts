@@ -5,6 +5,7 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { supabaseAdmin, supabaseAuth } from "../supabase.js";
 import { assignGuildUserRole } from "../services/guild-user-roles.js";
 import { ApiError } from "../errors.js";
+import type { UserRole } from "../types.js";
 
 const router = Router();
 
@@ -15,6 +16,13 @@ const loginSchema = z.object({
 
 const seedAdminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@valhalla.gg";
 const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Valhalla!23";
+
+type ProfileRecord = {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  app_role: UserRole | null;
+};
 
 async function ensureSeedAdmin(email: string, password: string) {
   if (email !== seedAdminEmail || password !== seedAdminPassword) {
@@ -128,9 +136,9 @@ router.post(
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
-      .select("id, email, display_name")
+      .select("id, email, display_name, app_role")
       .eq("id", session.user.id)
-      .maybeSingle();
+      .maybeSingle<ProfileRecord>();
 
     if (profileError) {
       console.warn("Failed to load profile during login", profileError);
@@ -150,7 +158,9 @@ router.post(
           (session.user.user_metadata as Record<string, string> | undefined)?.display_name ??
           session.user.email ??
           email,
-        app_role: session.user.app_metadata?.role ?? null,
+        app_role:
+          (profile?.app_role as UserRole | null) ??
+          ((session.user.app_metadata?.role ?? null) as UserRole | null),
       },
     });
   }),
@@ -179,6 +189,12 @@ router.post(
 
     const session = data.session;
 
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("app_role")
+      .eq("id", session.user.id)
+      .maybeSingle<Pick<ProfileRecord, "app_role">>();
+
     res.json({
       access_token: session.access_token,
       refresh_token: session.refresh_token,
@@ -192,7 +208,9 @@ router.post(
           (session.user.user_metadata as Record<string, string> | undefined)?.display_name ??
           session.user.email ??
           "",
-        app_role: session.user.app_metadata?.role ?? null,
+        app_role:
+          (profile?.app_role as UserRole | null) ??
+          ((session.user.app_metadata?.role ?? null) as UserRole | null),
       },
     });
   }),
@@ -215,9 +233,9 @@ router.get(
       await Promise.all([
         supabaseAdmin
           .from("profiles")
-          .select("id, email, display_name")
+          .select("id, email, display_name, app_role")
           .eq("id", user.id)
-          .maybeSingle(),
+          .maybeSingle<ProfileRecord>(),
         supabaseAdmin
           .from("guild_user_roles")
           .select("guild_id, role")
@@ -232,14 +250,17 @@ router.get(
       console.warn("Failed to load guild roles for profile", rolesError);
     }
 
-    const resolvedProfile = profile ?? {
+    const fallbackProfile: ProfileRecord = {
       id: user.id,
       email: user.email ?? "",
       display_name:
         (user.user_metadata as Record<string, string> | undefined)?.display_name ??
         user.email ??
         "",
+      app_role: (user.app_metadata?.role ?? null) as UserRole | null,
     };
+
+    const resolvedProfile = (profile as ProfileRecord | null) ?? fallbackProfile;
 
     res.json({
       id: resolvedProfile.id,
@@ -249,7 +270,7 @@ router.get(
         (user.user_metadata as Record<string, string> | undefined)?.display_name ??
         user.email ??
         "",
-      app_role: user.app_metadata?.role ?? null,
+      app_role: resolvedProfile.app_role ?? fallbackProfile.app_role ?? null,
       guild_roles: guildRoles ?? [],
     });
   }),

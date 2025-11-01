@@ -1,5 +1,6 @@
 import { ApiError } from "../errors.js";
 import { supabaseAdmin } from "../supabase.js";
+import { userIsSuperAdmin } from "./access.js";
 import type {
   DashboardResponse,
   GuildSummary,
@@ -38,6 +39,42 @@ async function getGuildBalance(guildId: string): Promise<number> {
 }
 
 export async function fetchGuildSummaries(userId: string): Promise<GuildSummary[]> {
+  if (await userIsSuperAdmin(userId)) {
+    const { data, error } = await supabaseAdmin
+      .from("guilds")
+      .select("id, name, tag")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Failed to load guilds for super admin", error);
+      throw new ApiError(500, "Unable to load guilds");
+    }
+
+    if (!data) {
+      return [];
+    }
+
+    const summaries = await Promise.all(
+      data.map(async (guild) => {
+        const [memberCount, balance] = await Promise.all([
+          getGuildMemberCount(guild.id),
+          getGuildBalance(guild.id),
+        ]);
+
+        return {
+          id: guild.id,
+          name: guild.name ?? "Unknown Guild",
+          tag: guild.tag ?? "",
+          balance,
+          member_count: memberCount,
+          role: "guild_admin" as const,
+        };
+      }),
+    );
+
+    return summaries;
+  }
+
   const { data, error } = await supabaseAdmin
     .from("guild_user_roles")
     .select("guild_id, role, guild:guild_id ( id, name, tag )")

@@ -33,22 +33,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 import { TransactionForm, type TransactionSchema } from "@/components/forms/transaction-form";
-
 import {
-
-  createTransaction,
-
-  listTransactions,
-
   confirmTransaction,
-
+  createTransaction,
+  deleteTransaction,
+  listTransactions,
+  updateTransaction,
 } from "@/lib/api/transactions";
-
 import { formatCurrency, formatDateTime } from "@/lib/format";
-
 import { useToast } from "@/components/ui/use-toast";
-
-import { TransactionType } from "@/lib/types";
+import type { AuditLog, Transaction, TransactionType } from "@/lib/types";
 
 import { DateRangePicker, type DateRange } from "@/components/forms/date-range-picker";
 
@@ -59,12 +53,48 @@ import { CheckCircle2, PlusCircle, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
-
 import { toApiError } from "@/lib/api/errors";
-
 import { useDashboardGuild } from "@/components/dashboard/dashboard-guild-context";
+import { fetchGuildAuditLogs } from "@/lib/api/guild-access";
 
+function describeTransactionLog(log: AuditLog): string {
+  const actor = log.actor_name ?? "Someone";
+  const metadata = log.metadata ?? {};
+  const category =
+    typeof metadata.category === "string" && metadata.category.length > 0
+      ? metadata.category
+      : undefined;
+  const txType =
+    typeof metadata.tx_type === "string" && metadata.tx_type.length > 0
+      ? metadata.tx_type
+      : undefined;
+  const amountValue =
+    typeof metadata.amount === "number"
+      ? metadata.amount
+      : typeof metadata.amount === "string"
+        ? Number(metadata.amount)
+        : null;
+  const amount =
+    typeof amountValue === "number" && Number.isFinite(amountValue)
+      ? formatCurrency(amountValue)
+      : undefined;
 
+  const baseDetails = [txType, category].filter(Boolean).join(" / ");
+  const detailText = [amount, baseDetails].filter(Boolean).join(" - ");
+
+  switch (log.action) {
+    case "TRANSACTION_CREATED":
+      return `${actor} created a transaction${detailText ? ` (${detailText})` : ""}.`;
+    case "TRANSACTION_UPDATED":
+      return `${actor} updated a transaction${detailText ? ` (${detailText})` : ""}.`;
+    case "TRANSACTION_DELETED":
+      return `${actor} deleted a transaction${detailText ? ` (${detailText})` : ""}.`;
+    case "TRANSACTION_CONFIRMED":
+      return `${actor} confirmed a transaction${detailText ? ` (${detailText})` : ""}.`;
+    default:
+      return `${actor} recorded activity.`;
+  }
+}
 
 export default function TransactionsPage() {
 
@@ -98,6 +128,14 @@ export default function TransactionsPage() {
 
   const permissions = getGuildPermissions(guildRole);
 
+  useEffect(() => {
+    if (!permissions.canManageTransactions) {
+      setDialogOpen(false);
+      setEditDialogOpen(false);
+      setTransactionToEdit(null);
+    }
+  }, [permissions.canManageTransactions]);
+
 
 
   const [filters, setFilters] = useState<{
@@ -115,6 +153,8 @@ export default function TransactionsPage() {
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
 
 
 
@@ -136,6 +176,21 @@ export default function TransactionsPage() {
 
     enabled: Boolean(guildId),
 
+  });
+
+  const historyQuery = useQuery({
+    queryKey: ["guild", guildId, "transactions", "history"],
+    queryFn: () =>
+      fetchGuildAuditLogs(guildId, {
+        actions: [
+          "TRANSACTION_CREATED",
+          "TRANSACTION_UPDATED",
+          "TRANSACTION_DELETED",
+          "TRANSACTION_CONFIRMED",
+        ],
+        limit: 25,
+      }),
+    enabled: Boolean(guildId),
   });
 
 
@@ -160,7 +215,10 @@ export default function TransactionsPage() {
 
     onSuccess: async () => {
 
-      await queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions", "history"] }),
+      ]);
 
       setDialogOpen(false);
 
@@ -192,13 +250,87 @@ export default function TransactionsPage() {
 
 
 
+  const updateMutation = useMutation({
+
+    mutationFn: async (payload: TransactionSchema) => {
+
+      if (!transactionToEdit) {
+        throw new Error("Transaction not selected");
+      }
+
+      return updateTransaction(guildId, transactionToEdit.id, {
+        tx_type: payload.tx_type,
+        category: payload.category,
+        amount: payload.amount,
+        description: payload.description,
+        evidence_path: payload.evidence_path,
+      });
+    },
+
+    onSuccess: async () => {
+
+      await queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["guild", guildId, "transactions", "history"],
+      });
+      setEditDialogOpen(false);
+      setTransactionToEdit(null);
+      toast({
+        title: "Transaction updated",
+        description: "Changes have been saved.",
+      });
+    },
+
+    onError: async (error) => {
+
+      const apiError = await toApiError(error);
+      toast({
+        title: "Failed to update transaction",
+        description: apiError.message,
+      });
+    },
+  });
+
+
+
+  const deleteMutation = useMutation({
+
+    mutationFn: (transactionId: string) => deleteTransaction(guildId, transactionId),
+
+    onSuccess: async () => {
+
+      await queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["guild", guildId, "transactions", "history"],
+      });
+      toast({
+        title: "Transaction deleted",
+        description: "The transaction has been removed.",
+      });
+    },
+
+    onError: async (error) => {
+
+      const apiError = await toApiError(error);
+      toast({
+        title: "Failed to delete transaction",
+        description: apiError.message,
+      });
+    },
+  });
+
+
+
   const confirmMutation = useMutation({
 
     mutationFn: (transactionId: string) => confirmTransaction(guildId, transactionId),
 
     onSuccess: async () => {
 
-      await queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions"] }),
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions", "history"] }),
+      ]);
 
       toast({
 
@@ -228,7 +360,32 @@ export default function TransactionsPage() {
 
 
 
+  const handleEditTransaction = (transaction: Transaction) => {
+
+    setTransactionToEdit(transaction);
+    setEditDialogOpen(true);
+  };
+
+
+
+  const handleDeleteTransaction = (transaction: Transaction) => {
+
+    if (deleteMutation.isPending) {
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this transaction? This cannot be undone.");
+    if (!confirmed) {
+      return;
+    }
+
+    deleteMutation.mutate(transaction.id);
+  };
+
+
+
   const transactions = transactionsQuery.data?.transactions ?? [];
+  const transactionHistory = historyQuery.data ?? [];
 
   const isLoading = transactionsQuery.isLoading;
 
@@ -275,25 +432,57 @@ export default function TransactionsPage() {
         </div>
 
         {permissions.canManageTransactions && (
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setDialogOpen(true)} className="rounded-full px-4">
-                <PlusCircle className="mr-2 h-4 w-4" /> New transaction
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add transaction</DialogTitle>
-              </DialogHeader>
-              <TransactionForm
-                loading={createMutation.isPending}
-                onSubmit={async (values) => {
-                  await createMutation.mutateAsync(values);
-                }}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => setDialogOpen(true)} className="rounded-full px-4">
+              <PlusCircle className="mr-2 h-4 w-4" /> New transaction
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add transaction</DialogTitle>
+            </DialogHeader>
+            <TransactionForm
+              loading={createMutation.isPending}
+              onSubmit={async (values) => {
+                await createMutation.mutateAsync(values);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {permissions.canManageTransactions && transactionToEdit && (
+        <Dialog
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) {
+              setTransactionToEdit(null);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit transaction</DialogTitle>
+            </DialogHeader>
+            <TransactionForm
+              defaultValues={{
+                tx_type: transactionToEdit.tx_type,
+                category: transactionToEdit.category,
+                amount: transactionToEdit.amount,
+                description: transactionToEdit.description ?? "",
+                evidence_path: transactionToEdit.evidence_path ?? "",
+              }}
+              loading={updateMutation.isPending}
+              resetOnSubmit={false}
+              onSubmit={async (values) => {
+                await updateMutation.mutateAsync(values);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
 
       </div>
 
@@ -535,27 +724,69 @@ export default function TransactionsPage() {
 
                     <TableCell>
 
-        {permissions.canManageTransactions && !tx.confirmed ? (
+                      {permissions.canManageTransactions ? (
 
-                        <Button
+                        <div className="flex flex-wrap gap-2">
 
-                          size="sm"
+                          <Button
 
-                          variant="ghost"
+                            size="sm"
 
-                          className="rounded-full"
+                            variant="ghost"
 
-                          disabled={confirmMutation.isPending}
+                            className="rounded-full"
 
-                          onClick={() => confirmMutation.mutate(tx.id)}
+                            onClick={() => handleEditTransaction(tx)}
 
-                        >
+                          >
 
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Edit
 
-                          Confirm
+                          </Button>
 
-                        </Button>
+                          <Button
+
+                            size="sm"
+
+                            variant="ghost"
+
+                            className="rounded-full text-destructive"
+
+                            disabled={deleteMutation.isPending}
+
+                            onClick={() => handleDeleteTransaction(tx)}
+
+                          >
+
+                            Delete
+
+                          </Button>
+
+                          {!tx.confirmed && (
+
+                            <Button
+
+                              size="sm"
+
+                              variant="ghost"
+
+                              className="rounded-full"
+
+                              disabled={confirmMutation.isPending}
+
+                              onClick={() => confirmMutation.mutate(tx.id)}
+
+                            >
+
+                              <CheckCircle2 className="mr-2 h-4 w-4" />
+
+                              Confirm
+
+                            </Button>
+
+                          )}
+
+                        </div>
 
                       ) : (
 
@@ -577,6 +808,46 @@ export default function TransactionsPage() {
 
         </CardContent>
 
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Transaction history</CardTitle>
+          <CardDescription>Recent adds, edits, deletes, and confirmations.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {historyQuery.isLoading && (
+            <div className="space-y-2">
+              <Skeleton className="h-14 rounded-2xl" />
+              <Skeleton className="h-14 rounded-2xl" />
+            </div>
+          )}
+          {!historyQuery.isLoading && transactionHistory.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+              No activity recorded yet.
+            </div>
+          )}
+          {transactionHistory.length > 0 && (
+            <div className="space-y-3">
+              {transactionHistory.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start justify-between rounded-3xl border border-border/60 p-4"
+                >
+                  <div className="space-y-1 pr-4">
+                    <p className="text-sm font-medium">{describeTransactionLog(log)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(log.created_at)} • {log.actor_name ?? "System"}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="whitespace-nowrap">
+                    {log.action.replace("TRANSACTION_", "").replace("_", " ")}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
       </Card>
 
     </div>

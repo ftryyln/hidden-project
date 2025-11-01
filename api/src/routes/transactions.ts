@@ -12,7 +12,9 @@ import {
 import {
   confirmTransaction,
   createTransaction,
+  deleteTransaction,
   listTransactions,
+  updateTransaction,
 } from "../services/transactions.js";
 import { fromZodError } from "../errors.js";
 
@@ -55,6 +57,37 @@ router.post(
 
     const tx = await createTransaction(guildId, req.user!.id, parsed.data);
     res.status(201).json(tx);
+  }),
+);
+
+router.patch(
+  "/guilds/:guildId/transactions/:transactionId",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const guildId = ensureUuid(req.params.guildId, "guildId");
+    const transactionId = ensureUuid(req.params.transactionId, "transactionId");
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin", "officer"]);
+
+    const parsed = transactionCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw fromZodError(parsed.error);
+    }
+
+    const tx = await updateTransaction(guildId, transactionId, req.user!.id, parsed.data);
+    res.json(tx);
+  }),
+);
+
+router.delete(
+  "/guilds/:guildId/transactions/:transactionId",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const guildId = ensureUuid(req.params.guildId, "guildId");
+    const transactionId = ensureUuid(req.params.transactionId, "transactionId");
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin", "officer"]);
+
+    await deleteTransaction(guildId, transactionId, req.user!.id);
+    res.status(204).send();
   }),
 );
 

@@ -5,6 +5,46 @@ import { supabaseAdmin } from "../supabase.js";
 import { userIsSuperAdmin } from "./access.js";
 import type { AuditAction, AuditLog, GuildRole } from "../types.js";
 
+const LEGACY_AUDIT_ACTIONS = new Set<AuditAction>([
+  "ROLE_ASSIGNED",
+  "ROLE_REVOKED",
+  "INVITE_CREATED",
+  "INVITE_REVOKED",
+  "INVITE_ACCEPTED",
+  "TRANSACTION_CONFIRMED",
+]);
+
+const AUDIT_ACTION_FALLBACK_MAP: Partial<Record<AuditAction, AuditAction>> = {
+  GUILD_CREATED: "INVITE_CREATED",
+  GUILD_UPDATED: "TRANSACTION_CONFIRMED",
+  GUILD_DELETED: "INVITE_REVOKED",
+  TRANSACTION_CREATED: "TRANSACTION_CONFIRMED",
+  TRANSACTION_UPDATED: "TRANSACTION_CONFIRMED",
+  TRANSACTION_DELETED: "TRANSACTION_CONFIRMED",
+  LOOT_CREATED: "INVITE_ACCEPTED",
+  LOOT_UPDATED: "INVITE_ACCEPTED",
+  LOOT_DELETED: "INVITE_REVOKED",
+  LOOT_DISTRIBUTED: "TRANSACTION_CONFIRMED",
+};
+
+function mapActionsToLegacy(actions?: AuditAction[]): AuditAction[] | undefined {
+  if (!actions || actions.length === 0) {
+    return undefined;
+  }
+  const mapped = new Set<AuditAction>();
+  for (const action of actions) {
+    if (LEGACY_AUDIT_ACTIONS.has(action)) {
+      mapped.add(action);
+      continue;
+    }
+    const fallback = AUDIT_ACTION_FALLBACK_MAP[action];
+    if (fallback) {
+      mapped.add(fallback);
+    }
+  }
+  return mapped.size > 0 ? Array.from(mapped) : undefined;
+}
+
 export interface AuditLogPayload {
   action: AuditAction;
   guildId?: string | null;
@@ -17,13 +57,28 @@ export async function recordAuditLog(
   client: SupabaseClient,
   payload: AuditLogPayload,
 ): Promise<void> {
-  const { error } = await client.from("audit_logs").insert({
-    guild_id: payload.guildId ?? null,
-    actor_user_id: payload.actorUserId ?? null,
-    target_user_id: payload.targetUserId ?? null,
-    action: payload.action,
-    metadata: payload.metadata ?? {},
-  });
+  const insert = async (action: AuditAction, metadata: Record<string, unknown>) =>
+    client.from("audit_logs").insert({
+      guild_id: payload.guildId ?? null,
+      actor_user_id: payload.actorUserId ?? null,
+      target_user_id: payload.targetUserId ?? null,
+      action,
+      metadata,
+    });
+
+  const baseMetadata = payload.metadata ?? {};
+  let { error } = await insert(payload.action, baseMetadata);
+
+  if (error && error.code === "22P02") {
+    const fallback = AUDIT_ACTION_FALLBACK_MAP[payload.action];
+    if (fallback && fallback !== payload.action) {
+      const metadataWithFallback = {
+        ...baseMetadata,
+        fallback_action: payload.action,
+      };
+      ({ error } = await insert(fallback, metadataWithFallback));
+    }
+  }
 
   if (error) {
     console.error("Failed to record audit log", error);
@@ -87,41 +142,73 @@ export async function listGuildAuditLogs(
   }
 
   const limit = Math.min(Math.max(options.limit ?? 50, 1), 100);
-  let query = supabaseAdmin
-    .from("audit_logs")
-    .select(
-      "id, guild_id, actor_user_id, target_user_id, action, metadata, created_at, actor:profiles!audit_logs_actor_user_id_fkey(display_name,email), target:profiles!audit_logs_target_user_id_fkey(display_name,email)",
-    )
-    .eq("guild_id", guildId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  const officerFullActions: AuditAction[] = [
+    "ROLE_ASSIGNED",
+    "ROLE_REVOKED",
+    "INVITE_CREATED",
+    "INVITE_REVOKED",
+    "INVITE_ACCEPTED",
+    "TRANSACTION_CREATED",
+    "TRANSACTION_UPDATED",
+    "TRANSACTION_DELETED",
+    "TRANSACTION_CONFIRMED",
+    "LOOT_CREATED",
+    "LOOT_UPDATED",
+    "LOOT_DELETED",
+    "LOOT_DISTRIBUTED",
+  ];
+  const officerLegacyActions = mapActionsToLegacy(officerFullActions) ?? [];
 
-  if (options.actions && options.actions.length > 0) {
-    query = query.in("action", options.actions);
+  const buildQuery = (actionsToUse: AuditAction[] | undefined, useLegacy: boolean) => {
+    let query = supabaseAdmin
+      .from("audit_logs")
+      .select(
+        "id, guild_id, actor_user_id, target_user_id, action, metadata, created_at, actor:profiles!audit_logs_actor_user_id_fkey(display_name,email), target:profiles!audit_logs_target_user_id_fkey(display_name,email)",
+      )
+      .eq("guild_id", guildId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (actionsToUse && actionsToUse.length > 0) {
+      query = query.in("action", actionsToUse);
+    }
+
+    if (options.cursor) {
+      query = query.lt("created_at", options.cursor);
+    }
+
+    if (actorRole === "guild_admin") {
+      // full access
+    } else if (actorRole === "officer") {
+      const allowed = useLegacy ? officerLegacyActions : officerFullActions;
+      const enforced =
+        actionsToUse && actionsToUse.length > 0
+          ? actionsToUse.filter((action) => allowed.includes(action))
+          : allowed;
+      if (enforced && enforced.length > 0) {
+        query = query.in("action", enforced);
+      }
+    } else {
+      // Raider & below: only self-related entries
+      query = query.or(
+        `actor_user_id.eq.${actorId},target_user_id.eq.${actorId}`,
+      );
+    }
+
+    return query;
+  };
+
+  const initialActions =
+    options.actions && options.actions.length > 0
+      ? Array.from(new Set(options.actions))
+      : undefined;
+
+  let { data, error } = await buildQuery(initialActions, false);
+
+  if (error && error.code === "22P02") {
+    const fallbackActions = mapActionsToLegacy(initialActions);
+    ({ data, error } = await buildQuery(fallbackActions, true));
   }
-
-  if (options.cursor) {
-    query = query.lt("created_at", options.cursor);
-  }
-
-  if (actorRole === "guild_admin") {
-    // full access
-  } else if (actorRole === "officer") {
-    query = query.in("action", [
-      "ROLE_ASSIGNED",
-      "ROLE_REVOKED",
-      "INVITE_CREATED",
-      "INVITE_REVOKED",
-      "INVITE_ACCEPTED",
-    ]);
-  } else {
-    // Raider & below: only self-related entries
-    query = query.or(
-      `actor_user_id.eq.${actorId},target_user_id.eq.${actorId}`,
-    );
-  }
-
-  const { data, error } = await query;
 
   if (error) {
     console.error("Failed to load audit logs", error);

@@ -221,7 +221,13 @@ router.get(
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const guildId = ensureUuid(req.params.guildId, "guildId");
     const actorId = req.user!.id;
-    await requireGuildRole(supabaseAdmin, actorId, guildId, ["raider"]);
+    await requireGuildRole(supabaseAdmin, actorId, guildId, [
+      "guild_admin",
+      "officer",
+      "raider",
+      "member",
+      "viewer",
+    ]);
 
     const actions =
       typeof req.query.actions === "string" && req.query.actions.length > 0

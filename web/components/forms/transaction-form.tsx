@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -30,24 +31,44 @@ export type TransactionSchema = z.infer<typeof schema>;
 interface TransactionFormProps {
   defaultValues?: Partial<TransactionSchema>;
   loading?: boolean;
+  resetOnSubmit?: boolean;
   onSubmit: (values: TransactionSchema) => Promise<void> | void;
 }
 
-export function TransactionForm({ defaultValues, loading, onSubmit }: TransactionFormProps) {
+const baseDefaults: TransactionSchema = {
+  tx_type: "income",
+  category: "",
+  amount: 0,
+  description: "",
+  evidence_path: "",
+};
+
+export function TransactionForm({
+  defaultValues,
+  loading,
+  resetOnSubmit = true,
+  onSubmit,
+}: TransactionFormProps) {
   const form = useForm<TransactionSchema>({
     resolver: zodResolver(schema),
     defaultValues: {
-      tx_type: "income",
-      category: "",
-      amount: 0,
-      description: "",
-      evidence_path: "",
+      ...baseDefaults,
       ...defaultValues,
     },
   });
 
+  useEffect(() => {
+    form.reset({
+      ...baseDefaults,
+      ...defaultValues,
+    });
+  }, [defaultValues, form]);
+
   const handleSubmit = form.handleSubmit(async (values) => {
     await onSubmit(values);
+    if (resetOnSubmit) {
+      form.reset(baseDefaults);
+    }
   });
 
   return (
@@ -55,7 +76,7 @@ export function TransactionForm({ defaultValues, loading, onSubmit }: Transactio
       <div className="grid gap-2">
         <Label>Type</Label>
         <Select
-          defaultValue={form.getValues("tx_type")}
+          value={form.watch("tx_type")}
           onValueChange={(value) =>
             form.setValue("tx_type", value as TransactionType, { shouldDirty: true })
           }

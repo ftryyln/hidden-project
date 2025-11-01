@@ -13,7 +13,7 @@ import { DashboardGuildProvider } from "@/components/dashboard/dashboard-guild-c
 const STORAGE_KEY = "guild-manager:selected-guild";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { status } = useAuth();
+  const { status, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
@@ -23,17 +23,29 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     if (match && match[1] !== "select") {
       return match[1];
     }
-    const stored =
-      typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
-    return stored;
+    return null;
   }, [pathname]);
 
   useEffect(() => {
-    if (guildFromPath && guildFromPath !== selectedGuild) {
-      setSelectedGuild(guildFromPath);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(STORAGE_KEY, guildFromPath);
-      }
+    if (!guildFromPath || guildFromPath === selectedGuild) {
+      return;
+    }
+    setSelectedGuild(guildFromPath);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, guildFromPath);
+    }
+  }, [guildFromPath, selectedGuild]);
+
+  useEffect(() => {
+    if (guildFromPath || selectedGuild) {
+      return;
+    }
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      setSelectedGuild(stored);
     }
   }, [guildFromPath, selectedGuild]);
 
@@ -43,15 +55,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(STORAGE_KEY, guildId);
       }
-    if (pathname?.startsWith("/guilds/")) {
-      const remainder = pathname.replace(/\/guilds\/[^/]+/, "");
-      router.push(`/guilds/${guildId}${remainder}`);
-    } else {
-      if (pathname !== "/dashboard") {
-        router.push("/dashboard");
+      if (pathname?.startsWith("/guilds/")) {
+        const remainder = pathname.replace(/\/guilds\/[^/]+/, "");
+        router.push(`/guilds/${guildId}${remainder}`);
+      } else {
+        if (pathname !== "/dashboard") {
+          router.push("/dashboard");
+        }
       }
-    }
-  },
+    },
     [pathname, router],
   );
 
@@ -69,6 +81,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  const isSuperAdmin = user?.app_role === "super_admin";
+
   return (
     <DashboardGuildProvider value={{ selectedGuild, changeGuild: handleGuildChange }}>
       <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
@@ -84,7 +98,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <UserMenu />
               </div>
             </div>
-            <DashboardNav guildId={selectedGuild} />
+            <DashboardNav guildId={selectedGuild} isSuperAdmin={isSuperAdmin} />
           </div>
         </header>
         <main className="container flex-1 py-8">{children}</main>

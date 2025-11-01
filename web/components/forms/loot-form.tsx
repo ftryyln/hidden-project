@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -28,31 +29,46 @@ const schema = z.object({
 export type LootSchema = z.infer<typeof schema>;
 
 interface LootFormProps {
+  defaultValues?: Partial<LootSchema>;
   onSubmit: (values: LootSchema) => Promise<void> | void;
   loading?: boolean;
+  resetOnSubmit?: boolean;
 }
 
-export function LootForm({ onSubmit, loading }: LootFormProps) {
+const lootDefaults: LootSchema = {
+  boss_name: "",
+  item_name: "",
+  item_rarity: "epic",
+  estimated_value: 0,
+  notes: "",
+};
+
+export function LootForm({
+  defaultValues,
+  onSubmit,
+  loading,
+  resetOnSubmit = true,
+}: LootFormProps) {
   const form = useForm<LootSchema>({
     resolver: zodResolver(schema),
     defaultValues: {
-      boss_name: "",
-      item_name: "",
-      item_rarity: "epic",
-      estimated_value: 0,
-      notes: "",
+      ...lootDefaults,
+      ...defaultValues,
     },
   });
 
+  useEffect(() => {
+    form.reset({
+      ...lootDefaults,
+      ...defaultValues,
+    });
+  }, [defaultValues, form]);
+
   const handleSubmit = form.handleSubmit(async (values) => {
     await onSubmit(values);
-    form.reset({
-      boss_name: "",
-      item_name: "",
-      item_rarity: "epic",
-      estimated_value: 0,
-      notes: "",
-    });
+    if (resetOnSubmit) {
+      form.reset(lootDefaults);
+    }
   });
 
   return (
@@ -68,7 +84,7 @@ export function LootForm({ onSubmit, loading }: LootFormProps) {
       <div className="grid gap-2">
         <Label>Rarity</Label>
         <Select
-          defaultValue={form.getValues("item_rarity")}
+          value={form.watch("item_rarity")}
           onValueChange={(value) =>
             form.setValue("item_rarity", value as Rarity, { shouldDirty: true })
           }

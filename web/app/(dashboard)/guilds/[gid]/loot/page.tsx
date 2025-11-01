@@ -17,19 +17,48 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { LootForm, type LootSchema } from "@/components/forms/loot-form";
 import { LootDistributionForm } from "@/components/forms/loot-distribution-form";
-import { listLoot, createLoot, distributeLoot } from "@/lib/api/loot";
+import { listLoot, createLoot, distributeLoot, updateLoot, deleteLoot } from "@/lib/api/loot";
 import { listMembers } from "@/lib/api/members";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { useToast } from "@/components/ui/use-toast";
-import type { LootRecord, LootDistribution, Member } from "@/lib/types";
+import type { LootRecord, LootDistribution, Member, AuditLog } from "@/lib/types";
 import { Gift, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
 import { toApiError } from "@/lib/api/errors";
 import { useDashboardGuild } from "@/components/dashboard/dashboard-guild-context";
+import { fetchGuildAuditLogs } from "@/lib/api/guild-access";
 
 const lootQueryKey = (guildId: string) => ["guild", guildId, "loot"] as const;
 const lootMembersQueryKey = (guildId: string) => ["guild", guildId, "members", { for: "loot" }] as const;
+
+function describeLootLog(log: AuditLog): string {
+  const actor = log.actor_name ?? "Someone";
+  const metadata = log.metadata ?? {};
+  const itemName =
+    typeof metadata.item_name === "string" && metadata.item_name.length > 0
+      ? metadata.item_name
+      : undefined;
+  const bossName =
+    typeof metadata.boss_name === "string" && metadata.boss_name.length > 0
+      ? metadata.boss_name
+      : undefined;
+  const label = itemName ? itemName : "loot";
+  const bossLabel = bossName ? ` from ${bossName}` : "";
+
+  switch (log.action) {
+    case "LOOT_CREATED":
+      return `${actor} recorded ${label}${bossLabel}.`;
+    case "LOOT_UPDATED":
+      return `${actor} updated ${label}${bossLabel}.`;
+    case "LOOT_DELETED":
+      return `${actor} removed ${label}${bossLabel}.`;
+    case "LOOT_DISTRIBUTED":
+      return `${actor} distributed ${label}${bossLabel}.`;
+    default:
+      return `${actor} recorded loot activity.`;
+  }
+}
 
 export default function LootPage() {
   const params = useParams<{ gid: string }>();
@@ -51,12 +80,16 @@ export default function LootPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [distributeOpen, setDistributeOpen] = useState(false);
   const [selectedLoot, setSelectedLoot] = useState<LootRecord | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [lootToEdit, setLootToEdit] = useState<LootRecord | null>(null);
 
   useEffect(() => {
     if (!permissions.canManageLoot) {
       setCreateOpen(false);
       setDistributeOpen(false);
       setSelectedLoot(null);
+      setEditOpen(false);
+      setLootToEdit(null);
     }
   }, [permissions.canManageLoot]);
 
@@ -74,6 +107,16 @@ export default function LootPage() {
         pageSize: 100,
       }),
     enabled: permissions.canManageLoot && distributeOpen && Boolean(guildId),
+  });
+
+  const historyQuery = useQuery({
+    queryKey: ["guild", guildId, "loot", "history"],
+    queryFn: () =>
+      fetchGuildAuditLogs(guildId!, {
+        actions: ["LOOT_CREATED", "LOOT_UPDATED", "LOOT_DELETED", "LOOT_DISTRIBUTED"],
+        limit: 25,
+      }),
+    enabled: Boolean(guildId),
   });
 
   const createMutation = useMutation({
@@ -98,6 +141,63 @@ export default function LootPage() {
       const apiError = await toApiError(error);
       toast({
         title: "Failed to save loot",
+        description: apiError.message,
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (payload: LootSchema) => {
+      if (!lootToEdit) {
+        throw new Error("Loot record not selected");
+      }
+      return updateLoot(guildId!, lootToEdit.id, {
+        boss_name: payload.boss_name,
+        item_name: payload.item_name,
+        item_rarity: payload.item_rarity,
+        estimated_value: payload.estimated_value,
+        notes: payload.notes,
+      });
+    },
+    onSuccess: async () => {
+      if (!guildId) return;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: lootQueryKey(guildId) }),
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "loot", "history"] }),
+      ]);
+      setEditOpen(false);
+      setLootToEdit(null);
+      toast({
+        title: "Loot updated",
+        description: "Changes saved successfully.",
+      });
+    },
+    onError: async (error) => {
+      const apiError = await toApiError(error);
+      toast({
+        title: "Failed to update loot",
+        description: apiError.message,
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (lootId: string) => deleteLoot(guildId!, lootId),
+    onSuccess: async () => {
+      if (!guildId) return;
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: lootQueryKey(guildId) }),
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "loot", "history"] }),
+      ]);
+      toast({
+        title: "Loot deleted",
+        description: "The loot entry has been removed.",
+      });
+    },
+    onError: async (error) => {
+      const apiError = await toApiError(error);
+      toast({
+        title: "Failed to delete loot",
         description: apiError.message,
       });
     },
@@ -135,7 +235,24 @@ export default function LootPage() {
     },
   });
 
+  const handleEditLoot = (loot: LootRecord) => {
+    setLootToEdit(loot);
+    setEditOpen(true);
+  };
+
+  const handleDeleteLoot = (loot: LootRecord) => {
+    if (deleteMutation.isPending || loot.distributed) {
+      return;
+    }
+    const confirmed = window.confirm("Delete this loot entry? This cannot be undone.");
+    if (!confirmed) {
+      return;
+    }
+    deleteMutation.mutate(loot.id);
+  };
+
   const lootItems = lootQuery.data?.loot ?? [];
+  const lootHistory = historyQuery.data ?? [];
   const isLoading = lootQuery.isLoading;
   const activeMembers: Member[] = membersQuery.data?.members ?? [];
 
@@ -168,6 +285,39 @@ export default function LootPage() {
             </DialogContent>
           </Dialog>
         )}
+
+      {permissions.canManageLoot && lootToEdit && (
+        <Dialog
+          open={editOpen}
+          onOpenChange={(open) => {
+            setEditOpen(open);
+            if (!open) {
+              setLootToEdit(null);
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit loot</DialogTitle>
+            </DialogHeader>
+            <LootForm
+              defaultValues={{
+                boss_name: lootToEdit.boss_name,
+                item_name: lootToEdit.item_name,
+                item_rarity: lootToEdit.item_rarity,
+                estimated_value: lootToEdit.estimated_value,
+                notes: lootToEdit.notes ?? "",
+              }}
+              loading={updateMutation.isPending}
+              resetOnSubmit={false}
+              onSubmit={async (values) => {
+                await updateMutation.mutateAsync(values);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
       </div>
 
       <Card>
@@ -220,20 +370,41 @@ export default function LootPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {permissions.canManageLoot && !loot.distributed ? (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="rounded-full"
-                          disabled={distributeMutation.isPending}
-                          onClick={() => {
-                            setSelectedLoot(loot);
-                            setDistributeOpen(true);
-                          }}
-                        >
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Distribute
-                        </Button>
+                      {permissions.canManageLoot ? (
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-full"
+                            onClick={() => handleEditLoot(loot)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-full text-destructive"
+                            disabled={deleteMutation.isPending || loot.distributed}
+                            onClick={() => handleDeleteLoot(loot)}
+                          >
+                            Delete
+                          </Button>
+                          {!loot.distributed && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-full"
+                              disabled={distributeMutation.isPending}
+                              onClick={() => {
+                                setSelectedLoot(loot);
+                                setDistributeOpen(true);
+                              }}
+                            >
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Distribute
+                            </Button>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">No actions</span>
                       )}
@@ -242,6 +413,46 @@ export default function LootPage() {
                 ))}
               </TableBody>
             </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Loot history</CardTitle>
+          <CardDescription>Audit log for loot entries and distributions.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {historyQuery.isLoading && (
+            <div className="space-y-2">
+              <Skeleton className="h-14 rounded-2xl" />
+              <Skeleton className="h-14 rounded-2xl" />
+            </div>
+          )}
+          {!historyQuery.isLoading && lootHistory.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
+              No loot history recorded yet.
+            </div>
+          )}
+          {lootHistory.length > 0 && (
+            <div className="space-y-3">
+              {lootHistory.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start justify-between rounded-3xl border border-border/60 p-4"
+                >
+                  <div className="space-y-1 pr-4">
+                    <p className="text-sm font-medium">{describeLootLog(log)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(log.created_at)} • {log.actor_name ?? "System"}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="whitespace-nowrap">
+                    {log.action.replace("LOOT_", "").replace("_", " ")}
+                  </Badge>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
