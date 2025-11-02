@@ -86,20 +86,21 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const isSuperAdmin = user?.app_role === "super_admin";
 
   const mobileMenuExtras = (
-    <div className="grid gap-5">
-      <div className="grid gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Profile
-        </span>
-        <UserMenu
-          showDetails
-          buttonProps={{
-            variant: "ghost",
-            size: "default",
-            className: "w-full justify-start gap-3 rounded-2xl bg-muted/20 px-4 py-2 text-left",
-          }}
-        />
-      </div>
+      <div className="grid gap-5">
+        <div className="grid gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Profile
+          </span>
+          <UserMenu
+            showDetails
+            buttonProps={{
+              variant: "ghost",
+              size: "default",
+              className:
+                "w-full justify-start gap-3 px-0 py-0 text-left hover:bg-transparent focus-visible:ring-0",
+            }}
+          />
+        </div>
       <div className="grid gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Selected Guild

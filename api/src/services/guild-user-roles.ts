@@ -2,7 +2,7 @@ import { ApiError } from "../errors.js";
 import { supabaseAdmin } from "../supabase.js";
 import { recordAuditLog } from "./audit.js";
 import { requireGuildRole, userIsSuperAdmin } from "./access.js";
-import type { AssignmentSource, GuildRole, UserRole } from "../types.js";
+import type { AssignmentSource, GuildRole, MemberRole, UserRole } from "../types.js";
 
 export interface GuildUserRole {
   id: string;
@@ -27,6 +27,100 @@ const ROLE_PRIORITY: Record<UserRole, number> = {
   member: 200,
   viewer: 100,
 };
+
+function mapGuildRoleToMemberRole(role: GuildRole): MemberRole {
+  switch (role) {
+    case "guild_admin":
+      return "leader";
+    case "officer":
+      return "officer";
+    case "raider":
+      return "raider";
+    default:
+      return "casual";
+  }
+}
+
+async function ensureMemberRecord(guildId: string, userId: string, role: GuildRole): Promise<void> {
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from("members")
+    .select("id")
+    .eq("guild_id", guildId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingError) {
+    console.warn("Failed to verify member record for guild access assignment", existingError);
+    return;
+  }
+
+  const memberRole = mapGuildRoleToMemberRole(role);
+
+  if (existing?.id) {
+    const { error: updateError } = await supabaseAdmin
+      .from("members")
+      .update({ role_in_guild: memberRole, is_active: true })
+      .eq("id", existing.id);
+
+    if (updateError) {
+      console.warn("Failed to update member role while syncing guild access", updateError);
+    }
+    return;
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("display_name, email")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profileError) {
+    console.warn("Failed to load profile when creating member from guild access", profileError);
+  }
+
+  const displayName = (profile?.display_name ?? profile?.email ?? "Guild member").trim();
+
+  const { error: insertError } = await supabaseAdmin.from("members").insert({
+    guild_id: guildId,
+    user_id: userId,
+    in_game_name: displayName || "Guild member",
+    role_in_guild: memberRole,
+    is_active: true,
+  });
+
+  if (insertError && insertError.code !== "23505") {
+    console.warn("Failed to insert member record while syncing guild access", insertError);
+  }
+}
+
+async function deactivateMemberIfNoAccess(guildId: string, userId: string): Promise<void> {
+  const { data, error } = await supabaseAdmin
+    .from("guild_user_roles")
+    .select("id")
+    .eq("guild_id", guildId)
+    .eq("user_id", userId)
+    .is("revoked_at", null)
+    .limit(1);
+
+  if (error) {
+    console.warn("Failed to check remaining guild access for member", error);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    return;
+  }
+
+  const { error: updateError } = await supabaseAdmin
+    .from("members")
+    .update({ is_active: false })
+    .eq("guild_id", guildId)
+    .eq("user_id", userId);
+
+  if (updateError) {
+    console.warn("Failed to deactivate member after access revocation", updateError);
+  }
+}
 
 function highestRole(roles: UserRole[]): UserRole | null {
   if (roles.length === 0) {
@@ -111,6 +205,18 @@ export async function listGuildUserRoles(guildId: string): Promise<GuildUserRole
   if (error) {
     console.error("Failed to list guild user roles", error);
     throw new ApiError(500, "Unable to load guild roles");
+  }
+
+  if (data && data.length > 0) {
+    await Promise.allSettled(
+      data.map((row) =>
+        ensureMemberRecord(
+          row.guild_id as string,
+          row.user_id as string,
+          row.role as GuildRole,
+        ),
+      ),
+    );
   }
 
   return (
@@ -222,6 +328,9 @@ export async function assignGuildUserRole(
       .eq("id", existing.id);
 
     await syncUserAppRole(userId);
+    await ensureMemberRecord(guildId, userId, role).catch((err) => {
+      console.warn("Failed to sync member roster after guild role update", err);
+    });
 
     return {
       ...existing,
@@ -354,6 +463,9 @@ export async function assignGuildUserRole(
   const profile = Array.isArray(data.profiles) ? data.profiles?.[0] : data.profiles;
 
   await syncUserAppRole(userId);
+  await ensureMemberRecord(guildId, userId, role).catch((err) => {
+    console.warn("Failed to sync member roster after guild role change", err);
+  });
 
   return {
     id: assignmentId,
@@ -421,4 +533,7 @@ export async function revokeGuildUserRole(
   });
 
   await syncUserAppRole(userId);
+  await deactivateMemberIfNoAccess(guildId, userId).catch((err) => {
+    console.warn("Failed to deactivate member after guild access removal", err);
+  });
 }
