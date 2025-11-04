@@ -17,6 +17,9 @@ const JWT_REFRESH_COOKIE_NAME = process.env.JWT_REFRESH_COOKIE_NAME ?? "refresh_
 const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
 const REGISTRATION_REDIRECT_URL = process.env.REGISTRATION_REDIRECT_URL ?? null;
 const RESET_PASSWORD_REDIRECT_URL = process.env.RESET_PASSWORD_REDIRECT_URL ?? null;
+const INVITE_URL_TEMPLATE = process.env.INVITE_URL_TEMPLATE ?? null;
+const INVITE_EMAIL_WEBHOOK_URL = process.env.INVITE_EMAIL_WEBHOOK_URL ?? null;
+const INVITE_EMAIL_WEBHOOK_SECRET = process.env.INVITE_EMAIL_WEBHOOK_SECRET ?? null;
 
 if (!SUPABASE_URL) {
   console.warn("SUPABASE_URL is not set. Set SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL.");
@@ -42,4 +45,7 @@ export const config = {
   frontendUrl: FRONTEND_URL,
   registrationRedirectUrl: REGISTRATION_REDIRECT_URL,
   resetPasswordRedirectUrl: RESET_PASSWORD_REDIRECT_URL,
+  inviteUrlTemplate: INVITE_URL_TEMPLATE,
+  inviteEmailWebhookUrl: INVITE_EMAIL_WEBHOOK_URL,
+  inviteEmailWebhookSecret: INVITE_EMAIL_WEBHOOK_SECRET,
 } as const;

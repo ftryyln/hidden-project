@@ -103,7 +103,11 @@ export default function GuildMembersPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<GuildRole>("member");
   const [inviteTtlDays, setInviteTtlDays] = useState<number>(7);
-  const [lastInviteInfo, setLastInviteInfo] = useState<{ email?: string | null; token?: string | null } | null>(null);
+  const [lastInviteInfo, setLastInviteInfo] = useState<{
+    email?: string | null;
+    token?: string | null;
+    url?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     const id = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -170,6 +174,7 @@ export default function GuildMembersPage() {
         setLastInviteInfo({
           email: result.invite.email ?? null,
           token: result.invite.token ?? null,
+          url: result.invite.invite_url ?? null,
         });
         toast({
           title: "Invite created",
@@ -230,7 +235,11 @@ export default function GuildMembersPage() {
       await queryClient.invalidateQueries({ queryKey: invitesQueryKey(guildId) });
       setInviteEmail("");
       setInviteRole("member");
-      setLastInviteInfo({ email: invite.email ?? null, token: invite.token ?? null });
+      setLastInviteInfo({
+        email: invite.email ?? null,
+        token: invite.token ?? null,
+        url: invite.invite_url ?? null,
+      });
       toast({
         title: "Invite ready",
         description: invite.email ? `Invite ready for ${invite.email}` : "Open invite generated.",
@@ -359,15 +368,18 @@ export default function GuildMembersPage() {
     }
   }, []);
 
-  const handleCopyToken = useCallback(
-    async (token: string) => {
+  const handleCopyInvite = useCallback(
+    async (value: string, subject: "link" | "token") => {
+      if (!value) {
+        return;
+      }
       try {
-        await navigator.clipboard.writeText(token);
-        toast({ title: "Invite token copied" });
+        await navigator.clipboard.writeText(value);
+        toast({ title: `Invite ${subject} copied` });
       } catch (copyError) {
         toast({
           title: "Copy failed",
-          description: "Copy the token manually.",
+          description: "Copy the value manually.",
           variant: "destructive",
         });
       }
@@ -830,22 +842,45 @@ export default function GuildMembersPage() {
               </p>
             )}
 
-            {lastInviteInfo?.token && (
+            {lastInviteInfo && (lastInviteInfo.url || lastInviteInfo.token) && (
               <div className="rounded-2xl border border-border/60 bg-muted/10 p-4">
-                <p className="text-sm font-semibold">Latest invite token</p>
-                <p className="text-xs text-muted-foreground">
-                  Copy and share this token securely. It will only be displayed once.
+                <p className="text-sm font-semibold">
+                  {lastInviteInfo.url ? "Latest invite link" : "Latest invite token"}
                 </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Input readOnly value={lastInviteInfo.token ?? ""} />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleCopyToken(lastInviteInfo.token ?? "")}
-                  >
-                    <Clipboard className="h-4 w-4" />
-                  </Button>
+                <p className="text-xs text-muted-foreground">
+                  {lastInviteInfo.url
+                    ? "Share this link with the invitee. It contains the one-time token and is only shown once."
+                    : "Copy and share this token securely. It will only be displayed once."}
+                </p>
+                <div className="mt-2 flex flex-col gap-2">
+                  {lastInviteInfo.url && (
+                    <div className="flex items-center gap-2">
+                      <Input readOnly value={lastInviteInfo.url ?? ""} />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleCopyInvite(lastInviteInfo.url ?? "", "link")}
+                        aria-label="Copy invite link"
+                      >
+                        <Link className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  {lastInviteInfo.token && (
+                    <div className="flex items-center gap-2">
+                      <Input readOnly value={lastInviteInfo.token ?? ""} />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleCopyInvite(lastInviteInfo.token ?? "", "token")}
+                        aria-label="Copy invite token"
+                      >
+                        <Clipboard className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

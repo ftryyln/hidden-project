@@ -161,6 +161,7 @@ export interface GuildInvite {
   used_by_user_id?: string | null;
   metadata?: Record<string, unknown>;
   token?: string;
+  invite_url?: string;
 }
 
 export interface AuditLog {

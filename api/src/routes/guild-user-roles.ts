@@ -124,6 +124,8 @@ router.post(
         status: invite.status,
         created_at: invite.created_at,
         created_by_user_id: invite.created_by_user_id,
+        token: invite.token,
+        invite_url: invite.invite_url,
       },
     });
   }),

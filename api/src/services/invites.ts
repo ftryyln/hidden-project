@@ -5,6 +5,7 @@ import { recordAuditLog } from "./audit.js";
 import { assignGuildUserRole } from "./guild-user-roles.js";
 import { requireGuildRole, userIsSuperAdmin } from "./access.js";
 import type { GuildRole, InviteStatus } from "../types.js";
+import { config } from "../env.js";
 
 export interface GuildInvite {
   id: string;
@@ -19,10 +20,12 @@ export interface GuildInvite {
   used_at?: string | null;
   used_by_user_id?: string | null;
   metadata: Record<string, unknown>;
+  invite_url?: string;
 }
 
 export interface InviteWithSecret extends GuildInvite {
   token: string;
+  invite_url: string;
 }
 
 export interface CreateInvitePayload {
@@ -49,6 +52,72 @@ function resolveExpiration(expiresAt?: string): string {
   const expires = new Date();
   expires.setDate(expires.getDate() + DEFAULT_EXPIRATION_DAYS);
   return expires.toISOString();
+}
+
+function buildInviteUrl(token: string): string {
+  const template = config.inviteUrlTemplate;
+  if (template && template.includes("{token}")) {
+    return template.replace("{token}", encodeURIComponent(token));
+  }
+
+  const base = config.frontendUrl.replace(/\/$/, "");
+  const url = new URL("/register", `${base}/`);
+  url.searchParams.set("invite", token);
+  return url.toString();
+}
+
+async function maybeSendInviteEmail(params: {
+  email?: string | null;
+  inviteUrl: string;
+  guildId: string;
+  defaultRole: GuildRole;
+  expiresAt: string;
+  metadata: Record<string, unknown>;
+  actorId: string;
+}) {
+  if (!params.email || !config.inviteEmailWebhookUrl) {
+    return;
+  }
+
+  if (typeof fetch !== "function") {
+    console.warn(
+      "Invite email webhook configured but fetch is unavailable in this runtime. Skipping invite email dispatch.",
+    );
+    return;
+  }
+
+  try {
+    const response = await fetch(config.inviteEmailWebhookUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(config.inviteEmailWebhookSecret
+          ? { Authorization: `Bearer ${config.inviteEmailWebhookSecret}` }
+          : {}),
+      },
+      body: JSON.stringify({
+        type: "guild_invite",
+        email: params.email,
+        invite_url: params.inviteUrl,
+        guild_id: params.guildId,
+        default_role: params.defaultRole,
+        expires_at: params.expiresAt,
+        metadata: params.metadata,
+        actor_user_id: params.actorId,
+      }),
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text().catch(() => null);
+      console.warn(
+        "Invite email webhook returned non-success status",
+        response.status,
+        bodyText ?? "",
+      );
+    }
+  } catch (err) {
+    console.warn("Failed to dispatch invite email webhook", err);
+  }
 }
 
 export async function listGuildInvites(guildId: string): Promise<GuildInvite[]> {
@@ -132,6 +201,9 @@ export async function createGuildInvite(
     throw new ApiError(500, "Unable to create invite");
   }
 
+  const inviteUrl = buildInviteUrl(token);
+  const normalizedMetadata = (data.metadata as Record<string, unknown>) ?? {};
+
   await recordAuditLog(supabaseAdmin, {
     guildId,
     actorUserId: actorId,
@@ -142,7 +214,18 @@ export async function createGuildInvite(
       email: data.email,
       default_role: data.default_role,
       expires_at: data.expires_at,
+      invite_url: inviteUrl,
     },
+  });
+
+  await maybeSendInviteEmail({
+    email: data.email,
+    inviteUrl,
+    guildId,
+    defaultRole: data.default_role as GuildRole,
+    expiresAt: data.expires_at as string,
+    metadata: normalizedMetadata,
+    actorId,
   });
 
   return {
@@ -157,8 +240,9 @@ export async function createGuildInvite(
     created_by_user_id: data.created_by_user_id as string,
     used_at: data.used_at ?? null,
     used_by_user_id: data.used_by_user_id ?? null,
-    metadata: (data.metadata as Record<string, unknown>) ?? {},
+    metadata: normalizedMetadata,
     token,
+    invite_url: inviteUrl,
   };
 }
 
