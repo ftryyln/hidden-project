@@ -18,8 +18,8 @@ import { listMembers, createMember, updateMember, toggleMemberStatus, type Membe
 
 import { useToast } from "@/components/ui/use-toast";
 import { formatDate } from "@/lib/format";
-import type { AuditLog, GuildInvite, GuildRole, GuildRoleAssignment, Member } from "@/lib/types";
-import { Clipboard, Copy, Edit, Link, Mail, Power, RefreshCw, Search, Shield, Trash2, UserPlus } from "lucide-react";
+import type { GuildInvite, GuildRole, Member } from "@/lib/types";
+import { Clipboard, Edit, Link, Mail, Power, RefreshCw, Search, Shield, Trash2, UserPlus } from "lucide-react";
 import { toApiError } from "@/lib/api/errors";
 import { createGuildAccess, createGuildInvite, fetchGuildAccess, fetchGuildAuditLogs, fetchGuildInvites, revokeGuildAccess, revokeGuildInvite, updateGuildAccess } from "@/lib/api/guild-access";
 import type { CreateGuildAccessResponse } from "@/lib/api/guild-access";
@@ -376,7 +376,7 @@ export default function GuildMembersPage() {
       try {
         await navigator.clipboard.writeText(value);
         toast({ title: `Invite ${subject} copied` });
-      } catch (copyError) {
+      } catch {
         toast({
           title: "Copy failed",
           description: "Copy the value manually.",

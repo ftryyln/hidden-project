@@ -210,7 +210,7 @@ export default function AdminUsersPage() {
   const assignMutation = useMutation({
     mutationFn: ({ userId, guildId, role }: { userId: string; guildId: string; role: GuildRole }) =>
       assignUserToGuild(userId, { guild_id: guildId, role }),
-    onSuccess: async (_data, variables) => {
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       toast({
         title: "Guild access updated",
@@ -314,8 +314,8 @@ export default function AdminUsersPage() {
     },
   });
 
-  const users = usersQuery.data ?? [];
-  const guilds = guildsQuery.data ?? [];
+  const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
+  const guilds = useMemo(() => guildsQuery.data ?? [], [guildsQuery.data]);
 
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {

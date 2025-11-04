@@ -127,7 +127,7 @@ export default function DashboardPage() {
                   <span>{tx.category}</span>
                 </div>,
                 formatCurrency(tx.amount),
-                <Badge variant={tx.confirmed ? "success" : "warning"}>
+                <Badge key="status" variant={tx.confirmed ? "success" : "warning"}>
                   {tx.confirmed ? "Confirmed" : "Pending"}
                 </Badge>,
               ],
@@ -152,7 +152,7 @@ export default function DashboardPage() {
                   <span className="text-xs text-muted-foreground">{loot.boss_name}</span>
                 </div>,
                 formatCurrency(loot.estimated_value),
-                <Badge variant={loot.distributed ? "success" : "warning"}>
+                <Badge key="status" variant={loot.distributed ? "success" : "warning"}>
                   {loot.distributed ? "Distributed" : "Pending"}
                 </Badge>,
               ],

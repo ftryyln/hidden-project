@@ -20,7 +20,7 @@ interface GuildSwitcherProps {
 
 export function GuildSwitcher({ value, onChange, className }: GuildSwitcherProps) {
   const { data, isLoading } = useGuilds();
-  const guilds = data ?? [];
+  const guilds = useMemo(() => data ?? [], [data]);
 
   const label = useMemo(() => {
     const selected = guilds.find((guild) => guild.id === value);

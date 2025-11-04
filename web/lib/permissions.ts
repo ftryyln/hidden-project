@@ -1,5 +1,5 @@
 
-import type { AuthProfile, GuildRole, UserRole } from "@/lib/types";
+import type { AuthProfile, UserRole } from "@/lib/types";
 
 export interface GuildPermissions {
   role: UserRole | null;

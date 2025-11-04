@@ -384,7 +384,10 @@ export default function TransactionsPage() {
 
 
 
-  const transactions = transactionsQuery.data?.transactions ?? [];
+  const transactions = useMemo(
+    () => transactionsQuery.data?.transactions ?? [],
+    [transactionsQuery.data?.transactions],
+  );
   const transactionHistory = historyQuery.data ?? [];
 
   const isLoading = transactionsQuery.isLoading;

@@ -2,7 +2,10 @@
 
 import * as React from "react";
 
-export type ToastActionElement = React.ReactElement<any, string | React.JSXElementConstructor<any>>;
+export type ToastActionElement = React.ReactElement<
+  unknown,
+  string | React.JSXElementConstructor<unknown>
+>;
 
 export type ToastVariant = "default" | "success" | "destructive";
 
