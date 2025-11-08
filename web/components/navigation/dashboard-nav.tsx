@@ -22,7 +22,6 @@ import {
   ShieldCheck,
   UserCog,
   Menu,
-  X,
 } from "lucide-react";
 
 interface DashboardNavProps {
