@@ -30,7 +30,7 @@ export function TableCard({
   skeletonHeight = 40,
 }: TableCardProps) {
   return (
-    <Card className="rounded-3xl border border-border/50 bg-card/80 backdrop-blur">
+    <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>

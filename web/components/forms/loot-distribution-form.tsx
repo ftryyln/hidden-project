@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatCurrency } from "@/lib/format";
 import type { Member, LootDistribution } from "@/lib/types";
 import { useToast } from "@/components/ui/use-toast";
+import { WemixAmount } from "@/components/wemix-amount";
 
 interface LootDistributionFormProps {
   lootName: string;
@@ -60,10 +60,17 @@ export function LootDistributionForm({
     <div className="space-y-4">
       <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
         <p className="text-sm font-semibold text-foreground">{lootName}</p>
-        <p className="text-xs text-muted-foreground">
-          Estimated loot: {formatCurrency(estimatedValue)} · Total share:{" "}
+        <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          <span>Estimated loot:</span>
+          <WemixAmount value={estimatedValue} className="text-xs text-foreground" iconSize={12} iconClassName="h-3 w-3" />
+          <span>· Total share:</span>
           <span className={totalShare > estimatedValue ? "text-destructive" : "text-secondary"}>
-            {formatCurrency(totalShare)}
+            <WemixAmount
+              value={totalShare}
+              className="text-xs"
+              iconSize={12}
+              iconClassName="h-3 w-3"
+            />
           </span>
         </p>
       </div>

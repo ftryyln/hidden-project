@@ -16,7 +16,7 @@ import { DateRangePicker, type DateRange } from "@/components/forms/date-range-p
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MonthlyAreaChart } from "@/components/charts/monthly-area-chart";
 import { fetchReports, exportReportsCsv } from "@/lib/api/reports";
-import { formatCurrency } from "@/lib/format";
+import { WemixAmount } from "@/components/wemix-amount";
 import { useToast } from "@/components/ui/use-toast";
 import { Download } from "lucide-react";
 import { toApiError } from "@/lib/api/errors";
@@ -139,14 +139,24 @@ export default function ReportsPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-3xl border border-border/60 bg-muted/20 p-6">
                 <p className="text-sm text-muted-foreground">Total income</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(reportsQuery.data?.totals.income ?? 0)}
+                <p className="text-3xl font-bold">
+                  <WemixAmount
+                    value={reportsQuery.data?.totals.income ?? 0}
+                    className="text-3xl font-bold"
+                    iconSize={24}
+                    iconClassName="h-6 w-6"
+                  />
                 </p>
               </div>
               <div className="rounded-3xl border border-border/60 bg-muted/20 p-6">
                 <p className="text-sm text-muted-foreground">Total expense</p>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(reportsQuery.data?.totals.expense ?? 0)}
+                <p className="text-3xl font-bold">
+                  <WemixAmount
+                    value={reportsQuery.data?.totals.expense ?? 0}
+                    className="text-3xl font-bold"
+                    iconSize={24}
+                    iconClassName="h-6 w-6"
+                  />
                 </p>
               </div>
             </div>

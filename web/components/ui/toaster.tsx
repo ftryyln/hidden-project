@@ -23,7 +23,7 @@ export function Toaster() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] flex w-full max-w-sm flex-col gap-3">
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[100] flex flex-col items-center gap-3 px-4 sm:bottom-6 sm:items-end">
       {toasts.map((toast) => (
         <Toast key={toast.id} {...toast} onClose={handleClose} />
       ))}

@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchDashboard } from "@/lib/api/guilds";
 import { useGuilds } from "@/hooks/queries/use-guilds";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatCurrency, formatDateTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { Users, Wallet, TrendingUp, TrendingDown } from "lucide-react";
@@ -16,6 +16,7 @@ import { KpiGrid } from "./_components/kpi-grid";
 import { RecentActivityCard } from "./_components/recent-activity-card";
 import { TableCard } from "./_components/table-card";
 import { TrendCard } from "./_components/trend-card";
+import { WemixAmount } from "@/components/wemix-amount";
 
 export default function DashboardPage() {
   const toast = useToast();
@@ -82,17 +83,17 @@ export default function DashboardPage() {
           {
             title: "Guild balance",
             icon: <Wallet className="h-5 w-5" />,
-            value: formatCurrency(data?.kpis.guild_balance ?? 0),
+            value: <WemixAmount value={data?.kpis.guild_balance ?? 0} />,
           },
           {
             title: "Income this month",
             icon: <TrendingUp className="h-5 w-5 text-emerald-400" />,
-            value: formatCurrency(data?.kpis.income_month ?? 0),
+            value: <WemixAmount value={data?.kpis.income_month ?? 0} />,
           },
           {
             title: "Expense this month",
             icon: <TrendingDown className="h-5 w-5 text-amber-400" />,
-            value: formatCurrency(data?.kpis.expense_month ?? 0),
+            value: <WemixAmount value={data?.kpis.expense_month ?? 0} />,
           },
         ]}
       />
@@ -126,7 +127,7 @@ export default function DashboardPage() {
                   </Badge>
                   <span>{tx.category}</span>
                 </div>,
-                formatCurrency(tx.amount),
+                <WemixAmount value={tx.amount} />,
                 <Badge key="status" variant={tx.confirmed ? "success" : "warning"}>
                   {tx.confirmed ? "Confirmed" : "Pending"}
                 </Badge>,
@@ -151,7 +152,7 @@ export default function DashboardPage() {
                   <span className="font-medium">{loot.item_name}</span>
                   <span className="text-xs text-muted-foreground">{loot.boss_name}</span>
                 </div>,
-                formatCurrency(loot.estimated_value),
+                <WemixAmount value={loot.estimated_value} />,
                 <Badge key="status" variant={loot.distributed ? "success" : "warning"}>
                   {loot.distributed ? "Distributed" : "Pending"}
                 </Badge>,

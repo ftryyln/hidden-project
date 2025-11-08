@@ -1,12 +1,11 @@
 const currencyFormatter = new Intl.NumberFormat("id-ID", {
-  style: "currency",
-  currency: "IDR",
   minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
 });
 
 export function formatCurrency(value: number | string): string {
   const amount = typeof value === "string" ? Number(value) : value;
-  if (Number.isNaN(amount)) return "Rp 0";
+  if (!Number.isFinite(amount)) return "0";
   return currencyFormatter.format(amount);
 }
 

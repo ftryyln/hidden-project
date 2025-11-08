@@ -25,14 +25,20 @@ export async function toApiError(source: Response | unknown): Promise<ApiClientE
   }
 
   if (axios.isAxiosError(source)) {
-    const status = source.response?.status ?? 500;
+    const isNetworkError = !source.response;
+    const status = source.response?.status ?? (isNetworkError ? 0 : 500);
     const payload = source.response?.data as ApiErrorResponse | undefined;
-    const message = payload?.message ?? source.message ?? "Unexpected error";
+    const fallbackMessage = isNetworkError ? "Network error" : "Unexpected error";
+    const message = payload?.message ?? source.message ?? fallbackMessage;
     return new ApiClientError(status, message, payload?.errors);
   }
 
   if (source instanceof Error) {
-    return new ApiClientError(500, source.message);
+    const message = source.message ?? "Unexpected error";
+    const lowerMessage = message.toLowerCase();
+    const isNetworkFailure =
+      lowerMessage.includes("network") || lowerMessage.includes("fetch failed") || lowerMessage.includes("failed to fetch");
+    return new ApiClientError(isNetworkFailure ? 0 : 500, message);
   }
 
   return new ApiClientError(500, "Unexpected error");

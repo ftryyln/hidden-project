@@ -19,15 +19,16 @@ import { LootForm, type LootSchema } from "@/components/forms/loot-form";
 import { LootDistributionForm } from "@/components/forms/loot-distribution-form";
 import { listLoot, createLoot, distributeLoot, updateLoot, deleteLoot } from "@/lib/api/loot";
 import { listMembers } from "@/lib/api/members";
-import { formatCurrency, formatDateTime } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 import { useToast } from "@/components/ui/use-toast";
 import type { LootRecord, LootDistribution, Member, AuditLog } from "@/lib/types";
-import { Gift, Sparkles } from "lucide-react";
+import { Gift, Pencil, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
 import { toApiError } from "@/lib/api/errors";
 import { useDashboardGuild } from "@/components/dashboard/dashboard-guild-context";
 import { fetchGuildAuditLogs } from "@/lib/api/guild-access";
+import { WemixAmount } from "@/components/wemix-amount";
 
 const lootQueryKey = (guildId: string) => ["guild", guildId, "loot"] as const;
 const lootMembersQueryKey = (guildId: string) => ["guild", guildId, "members", { for: "loot" }] as const;
@@ -364,7 +365,9 @@ export default function LootPage() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{formatCurrency(loot.estimated_value)}</TableCell>
+                    <TableCell>
+                      <WemixAmount value={loot.estimated_value} />
+                    </TableCell>
                     <TableCell>
                       <Badge variant={loot.distributed ? "success" : "warning"}>
                         {loot.distributed ? "Distributed" : "Pending"}
@@ -374,21 +377,23 @@ export default function LootPage() {
                       {permissions.canManageLoot ? (
                         <div className="flex flex-wrap gap-2">
                           <Button
-                            size="sm"
+                            size="icon"
                             variant="ghost"
-                            className="rounded-full"
+                            className="h-8 w-8 rounded-full"
                             onClick={() => handleEditLoot(loot)}
                           >
-                            Edit
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit loot</span>
                           </Button>
                           <Button
-                            size="sm"
+                            size="icon"
                             variant="ghost"
-                            className="rounded-full text-destructive"
+                            className="h-8 w-8 rounded-full text-destructive"
                             disabled={deleteMutation.isPending || loot.distributed}
                             onClick={() => handleDeleteLoot(loot)}
                           >
-                            Delete
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete loot</span>
                           </Button>
                           {!loot.distributed && (
                             <Button

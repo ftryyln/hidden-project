@@ -48,7 +48,7 @@ import { DateRangePicker, type DateRange } from "@/components/forms/date-range-p
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { CheckCircle2, PlusCircle, RefreshCw } from "lucide-react";
+import { CheckCircle2, Pencil, PlusCircle, RefreshCw, Trash2 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 
@@ -56,6 +56,7 @@ import { deriveGuildRole, getGuildPermissions } from "@/lib/permissions";
 import { toApiError } from "@/lib/api/errors";
 import { useDashboardGuild } from "@/components/dashboard/dashboard-guild-context";
 import { fetchGuildAuditLogs } from "@/lib/api/guild-access";
+import { WemixAmount } from "@/components/wemix-amount";
 
 function describeTransactionLog(log: AuditLog): string {
   const actor = log.actor_name ?? "Someone";
@@ -499,7 +500,14 @@ export default function TransactionsPage() {
 
             <CardDescription>Period income</CardDescription>
 
-            <CardTitle>{formatCurrency(summary.income)}</CardTitle>
+            <CardTitle className="text-3xl font-bold">
+              <WemixAmount
+                value={summary.income}
+                className="text-3xl font-bold"
+                iconSize={24}
+                iconClassName="h-6 w-6"
+              />
+            </CardTitle>
 
           </CardHeader>
 
@@ -511,7 +519,14 @@ export default function TransactionsPage() {
 
             <CardDescription>Period expense</CardDescription>
 
-            <CardTitle>{formatCurrency(summary.expense)}</CardTitle>
+            <CardTitle className="text-3xl font-bold">
+              <WemixAmount
+                value={summary.expense}
+                className="text-3xl font-bold"
+                iconSize={24}
+                iconClassName="h-6 w-6"
+              />
+            </CardTitle>
 
           </CardHeader>
 
@@ -523,10 +538,13 @@ export default function TransactionsPage() {
 
             <CardDescription>Net</CardDescription>
 
-            <CardTitle>
-
-              {formatCurrency(summary.income - summary.expense)}
-
+            <CardTitle className="text-3xl font-bold">
+              <WemixAmount
+                value={summary.income - summary.expense}
+                className="text-3xl font-bold"
+                iconSize={24}
+                iconClassName="h-6 w-6"
+              />
             </CardTitle>
 
           </CardHeader>
@@ -706,7 +724,9 @@ export default function TransactionsPage() {
 
                     </TableCell>
 
-                    <TableCell>{formatCurrency(tx.amount)}</TableCell>
+                    <TableCell>
+                      <WemixAmount value={tx.amount} />
+                    </TableCell>
 
                     <TableCell>{tx.created_by_name ?? tx.created_by}</TableCell>
 
@@ -731,39 +751,25 @@ export default function TransactionsPage() {
                       {permissions.canManageTransactions ? (
 
                         <div className="flex flex-wrap gap-2">
-
                           <Button
-
-                            size="sm"
-
+                            size="icon"
                             variant="ghost"
-
-                            className="rounded-full"
-
+                            className="h-8 w-8 rounded-full"
                             onClick={() => handleEditTransaction(tx)}
-
                           >
-
-                            Edit
-
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit transaction</span>
                           </Button>
 
                           <Button
-
-                            size="sm"
-
+                            size="icon"
                             variant="ghost"
-
-                            className="rounded-full text-destructive"
-
+                            className="h-8 w-8 rounded-full text-destructive"
                             disabled={deleteMutation.isPending}
-
                             onClick={() => handleDeleteTransaction(tx)}
-
                           >
-
-                            Delete
-
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete transaction</span>
                           </Button>
 
                           {!tx.confirmed && (

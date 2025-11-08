@@ -48,7 +48,7 @@ export function Toast({
   return (
     <div
       className={cn(
-        "relative flex w-full min-w-[280px] max-w-sm flex-col gap-1 rounded-2xl border p-4 text-sm shadow-lg backdrop-blur transition-all duration-200",
+        "pointer-events-auto relative flex w-full max-w-sm flex-col gap-1 rounded-2xl border p-4 text-sm shadow-lg backdrop-blur transition-all duration-200",
         variantStyles[variant],
       )}
     >

@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export interface KpiItem {
   title: string;
   icon: ReactNode;
-  value: string | number;
+  value: ReactNode;
 }
 
 interface KpiGridProps {

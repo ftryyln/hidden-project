@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { Input, type InputProps } from "@/components/ui/input";
-import { formatCurrency } from "@/lib/format";
+import { WemixAmount } from "@/components/wemix-amount";
 
 interface CurrencyInputProps
   extends Omit<InputProps, "value" | "defaultValue" | "onChange"> {
@@ -33,7 +33,16 @@ export function CurrencyInput({ value, onValueChange, ...props }: CurrencyInputP
         }}
       />
       <p className="text-xs text-muted-foreground">
-        {value ? formatCurrency(value) : "Enter the amount in Rupiah"}
+        {value ? (
+          <WemixAmount
+            value={value}
+            className="text-xs text-muted-foreground"
+            iconClassName="h-3 w-3"
+            iconSize={12}
+          />
+        ) : (
+          "Enter the amount in Rupiah"
+        )}
       </p>
     </div>
   );

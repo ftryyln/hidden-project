@@ -241,6 +241,29 @@ export async function deleteAdminUser(actorId: string, userId: string): Promise<
     }
   }
 
+  const { error: rosterUpdateError } = await supabaseAdmin
+    .from("members")
+    .update({ user_id: null, is_active: false })
+    .eq("user_id", userId);
+
+  if (rosterUpdateError) {
+    console.error("Failed to detach user from member roster during deletion", rosterUpdateError);
+    throw new ApiError(500, "Unable to update roster entries before deletion");
+  }
+
+  const [{ error: actorAuditError }, { error: targetAuditError }] = await Promise.all([
+    supabaseAdmin.from("audit_logs").update({ actor_user_id: null }).eq("actor_user_id", userId),
+    supabaseAdmin.from("audit_logs").update({ target_user_id: null }).eq("target_user_id", userId),
+  ]);
+
+  if (actorAuditError || targetAuditError) {
+    console.error("Failed to anonymize audit logs during user deletion", {
+      actorAuditError,
+      targetAuditError,
+    });
+    throw new ApiError(500, "Unable to delete user audit references");
+  }
+
   const { error: profileDeleteError } = await supabaseAdmin.from("profiles").delete().eq("id", userId);
   if (profileDeleteError) {
     console.error("Failed to delete profile", profileDeleteError);

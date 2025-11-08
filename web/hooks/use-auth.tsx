@@ -89,7 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(profile);
       setStatus("authenticated");
     } catch (error) {
-      console.error("Failed to bootstrap session", error);
+      if (error instanceof ApiClientError && error.status === 0) {
+        console.warn("Offline while bootstrapping session. User stays unauthenticated.");
+      } else {
+        console.error("Failed to bootstrap session", error);
+      }
       setUser(null);
       setStatus("unauthenticated");
     }
@@ -141,13 +145,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [handleUnauthorized]);
 
   const refreshProfile = useCallback(async () => {
-    const profile = await loadProfile();
-    if (!profile) {
-      handleUnauthorized();
-      return;
+    try {
+      const profile = await loadProfile();
+      if (!profile) {
+        handleUnauthorized();
+        return;
+      }
+      setUser(profile);
+      setStatus("authenticated");
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 0) {
+        console.warn("Offline while refreshing profile, keeping existing state.");
+        return;
+      }
+      throw error;
     }
-    setUser(profile);
-    setStatus("authenticated");
   }, [handleUnauthorized]);
 
   const value = useMemo<AuthContextValue>(

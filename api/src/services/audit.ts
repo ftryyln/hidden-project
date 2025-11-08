@@ -57,28 +57,58 @@ export async function recordAuditLog(
   client: SupabaseClient,
   payload: AuditLogPayload,
 ): Promise<void> {
-  const insert = async (action: AuditAction, metadata: Record<string, unknown>) =>
-    client.from("audit_logs").insert({
+  const insert = async (
+    action: AuditAction,
+    metadata: Record<string, unknown>,
+    legacySchema: boolean,
+  ) => {
+    if (legacySchema) {
+      return client.from("audit_logs").insert({
+        guild_id: payload.guildId ?? null,
+        user_id: payload.actorUserId ?? payload.targetUserId ?? null,
+        action,
+        payload: metadata,
+      });
+    }
+    return client.from("audit_logs").insert({
       guild_id: payload.guildId ?? null,
       actor_user_id: payload.actorUserId ?? null,
       target_user_id: payload.targetUserId ?? null,
       action,
       metadata,
     });
+  };
 
-  const baseMetadata = payload.metadata ?? {};
-  let { error } = await insert(payload.action, baseMetadata);
+  const performInsertWithFallbacks = async () => {
+    let legacySchema = false;
+    let action: AuditAction = payload.action;
+    let metadata: Record<string, unknown> = payload.metadata ?? {};
 
-  if (error && error.code === "22P02") {
-    const fallback = AUDIT_ACTION_FALLBACK_MAP[payload.action];
-    if (fallback && fallback !== payload.action) {
-      const metadataWithFallback = {
-        ...baseMetadata,
-        fallback_action: payload.action,
-      };
-      ({ error } = await insert(fallback, metadataWithFallback));
+    const attempt = () => insert(action, metadata, legacySchema);
+
+    let { error } = await attempt();
+
+    if (error && error.code === "42703" && !legacySchema) {
+      legacySchema = true;
+      ({ error } = await attempt());
     }
-  }
+
+    if (error && error.code === "22P02") {
+      const fallback = AUDIT_ACTION_FALLBACK_MAP[action];
+      if (fallback && fallback !== action) {
+        metadata = {
+          ...metadata,
+          fallback_action: action,
+        };
+        action = fallback;
+        ({ error } = await attempt());
+      }
+    }
+
+    return error;
+  };
+
+  const error = await performInsertWithFallbacks();
 
   if (error) {
     console.error("Failed to record audit log", error);
