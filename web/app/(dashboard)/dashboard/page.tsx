@@ -105,7 +105,7 @@ export default function DashboardPage() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <TableCard
-          title="Latest transactions"
+          title="Latest Transactions"
           description="Draft and newly confirmed transactions"
           columns={["Date", "Category", "Amount", "Status"]}
           rows={
@@ -140,7 +140,7 @@ export default function DashboardPage() {
         />
 
         <TableCard
-          title="Latest loot"
+          title="Latest Loot"
           description="Key drops from recent raids"
           columns={["Date", "Item", "Value", "Status"]}
           rows={

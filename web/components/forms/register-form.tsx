@@ -108,7 +108,7 @@ export function RegisterForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="display_name">Display name (optional)</Label>
+        <Label htmlFor="display_name">Display Name (In Game Name)</Label>
         <Input
           id="display_name"
           type="text"
@@ -138,7 +138,7 @@ export function RegisterForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Label htmlFor="confirmPassword">Confirm Password</Label>
         <Input
           id="confirmPassword"
           type="password"

@@ -3,9 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import {
   Card,
   CardContent,
@@ -13,26 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -49,78 +34,10 @@ import {
 } from "@/lib/api/guild-access";
 import type { AdminGuildSummary, GuildRoleAssignment } from "@/lib/types";
 import { toApiError } from "@/lib/api/errors";
-import { PlusCircle, Users, Shield, Pencil, Trash2, Crown } from "lucide-react";
-
-const formSchema = z.object({
-  name: z.string().min(3, "Name is required").max(120),
-  tag: z.string().min(2, "Tag is required").max(24),
-  description: z.string().max(500).optional().nullable(),
-});
-
-type GuildFormValues = z.infer<typeof formSchema>;
-
-function GuildForm({
-  defaultValues,
-  loading,
-  onSubmit,
-}: {
-  defaultValues?: Partial<GuildFormValues>;
-  loading?: boolean;
-  onSubmit: (values: GuildFormValues) => Promise<unknown> | void;
-}) {
-  const form = useForm<GuildFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      tag: "",
-      description: "",
-      ...defaultValues,
-    },
-  });
-
-  useEffect(() => {
-    form.reset({
-      name: defaultValues?.name ?? "",
-      tag: defaultValues?.tag ?? "",
-      description: defaultValues?.description ?? "",
-    });
-  }, [defaultValues, form]);
-
-  const handleSubmit = form.handleSubmit(async (values) => {
-    await onSubmit(values);
-  });
-
-  return (
-    <form className="grid gap-4" onSubmit={handleSubmit}>
-      <div className="grid gap-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" {...form.register("name")} />
-        {form.formState.errors.name && (
-          <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
-        )}
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="tag">Tag</Label>
-        <Input id="tag" {...form.register("tag")} />
-        {form.formState.errors.tag && (
-          <p className="text-xs text-destructive">{form.formState.errors.tag.message}</p>
-        )}
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea id="description" rows={3} {...form.register("description")} />
-        {form.formState.errors.description && (
-          <p className="text-xs text-destructive">
-            {form.formState.errors.description.message}
-          </p>
-        )}
-      </div>
-      <Button type="submit" disabled={loading}>
-        {loading ? "Saving…" : "Save changes"}
-      </Button>
-    </form>
-  );
-}
+import { PlusCircle } from "lucide-react";
+import { GuildForm, type GuildFormValues } from "./_components/guild-form";
+import { GuildDirectoryTable } from "./_components/guild-directory-table";
+import { GuildAdminsDialog } from "./_components/guild-admins-dialog";
 
 export default function AdminGuildsPage() {
   const { status, user } = useAuth();
@@ -323,108 +240,21 @@ export default function AdminGuildsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Guild directory</CardTitle>
+          <CardTitle>Guild Directory</CardTitle>
           <CardDescription>Full list of guilds managed inside the platform.</CardDescription>
         </CardHeader>
         <CardContent>
-          {guildsQuery.isLoading && (
-            <div className="space-y-3">
-              <Skeleton className="h-12 rounded-2xl" />
-              <Skeleton className="h-12 rounded-2xl" />
-              <Skeleton className="h-12 rounded-2xl" />
-            </div>
-          )}
-          {!guildsQuery.isLoading && (guildsQuery.data?.length ?? 0) === 0 && (
-            <div className="rounded-3xl border border-dashed border-border/60 p-12 text-center">
-              <p className="text-sm text-muted-foreground">
-                No guilds available yet. Create the first guild to get started.
-              </p>
-            </div>
-          )}
-          {!!(guildsQuery.data && guildsQuery.data.length > 0) && (
-            <div className="overflow-x-auto">
-              <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Members</TableHead>
-                  <TableHead>Guild admins</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {guildsQuery.data?.map((guild) => (
-                  <TableRow key={guild.id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-semibold">{guild.name}</span>
-                        <span className="text-xs text-muted-foreground">{guild.tag}</span>
-                        {guild.description && (
-                          <span className="text-xs text-muted-foreground line-clamp-1">
-                            {guild.description}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span>{guild.member_count}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-muted-foreground" />
-                        <span>{guild.admin_count}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground">
-                        {new Date(guild.created_at).toLocaleDateString()}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-full"
-                          onClick={() => {
-                            setAdminGuild(guild);
-                            setAdminsOpen(true);
-                          }}
-                        >
-                          <Crown className="h-4 w-4" />
-                          <span className="sr-only">Manage admins</span>
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-full"
-                          onClick={() => setEditingGuild(guild)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit guild</span>
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 rounded-full text-destructive"
-                          disabled={deleteMutation.isPending}
-                          onClick={() => handleDelete(guild)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                          <span className="sr-only">Delete guild</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              </Table>
-            </div>
-          )}
+          <GuildDirectoryTable
+            guilds={guildsQuery.data}
+            loading={guildsQuery.isLoading}
+            onEdit={(guild) => setEditingGuild(guild)}
+            onManageAdmins={(guild) => {
+              setAdminGuild(guild);
+              setAdminsOpen(true);
+            }}
+            onDelete={handleDelete}
+            deleteDisabled={deleteMutation.isPending}
+          />
         </CardContent>
       </Card>
 
@@ -447,89 +277,28 @@ export default function AdminGuildsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={adminsOpen} onOpenChange={(open) => {
-        setAdminsOpen(open);
-        if (!open) {
-          setAdminGuild(null);
-          setAdminEmail("");
-        }
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Guild admins</DialogTitle>
-            <DialogDescription>
-              Invite or assign users as guild_admin for {adminGuild?.name ?? "selected guild"}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-border/60 p-4">
-              <Label htmlFor="admin-email">Assign by email or user ID</Label>
-              <div className="mt-2 flex gap-2">
-                <Input
-                  id="admin-email"
-                  placeholder="user@example.com or user id"
-                  value={adminEmail}
-                  onChange={(event) => setAdminEmail(event.target.value)}
-                />
-                <Button
-                  onClick={() => addAdminMutation.mutate()}
-                  disabled={!adminEmail || addAdminMutation.isPending}
-                >
-                  Assign
-                </Button>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Existing users will be granted access immediately. New emails receive an invite.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Active admins
-              </h4>
-              {adminsQuery.isLoading && (
-                <div className="space-y-2">
-                  <Skeleton className="h-10 rounded-2xl" />
-                  <Skeleton className="h-10 rounded-2xl" />
-                </div>
-              )}
-              {!adminsQuery.isLoading && guildAdmins.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
-                  No guild admins assigned yet.
-                </div>
-              )}
-              {guildAdmins.map((assignment) => (
-                <div
-                  key={assignment.user_id}
-                  className="flex items-center justify-between rounded-2xl border border-border/60 p-3"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">
-                      {assignment.user?.display_name ?? assignment.user?.email ?? assignment.user_id}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Assigned at {new Date(assignment.assigned_at).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="rounded-full text-destructive"
-                    disabled={removeAdminMutation.isPending}
-                    onClick={() =>
-                      removeAdminMutation.mutate({
-                        guildId: adminGuild!.id,
-                        userId: assignment.user_id,
-                      })
-                    }
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <GuildAdminsDialog
+        open={adminsOpen}
+        onOpenChange={(open) => {
+          setAdminsOpen(open);
+          if (!open) {
+            setAdminGuild(null);
+            setAdminEmail("");
+          }
+        }}
+        guild={adminGuild}
+        adminEmail={adminEmail}
+        onAdminEmailChange={setAdminEmail}
+        onAssign={() => addAdminMutation.mutate()}
+        assignDisabled={addAdminMutation.isPending || !adminGuild}
+        admins={guildAdmins}
+        isLoadingAdmins={adminsQuery.isLoading}
+        onRemoveAdmin={(userId) => {
+          if (!adminGuild) return;
+          removeAdminMutation.mutate({ guildId: adminGuild.id, userId });
+        }}
+        removeDisabled={removeAdminMutation.isPending}
+      />
     </div>
   );
 }

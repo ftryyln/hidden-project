@@ -166,7 +166,7 @@ export default function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Monthly trend</CardTitle>
+          <CardTitle>Monthly Trend</CardTitle>
           <CardDescription>Income vs expense by month</CardDescription>
         </CardHeader>
         <CardContent>
