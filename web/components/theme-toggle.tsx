@@ -33,7 +33,7 @@ export function ThemeToggle({
       className={cn("shrink-0", className)}
       {...props}
     >
-      {isLight ? <MoonStar className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      {isLight ? <Sun className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
     </Button>
   );
 }
