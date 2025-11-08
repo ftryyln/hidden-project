@@ -95,7 +95,7 @@ export default function ReportsPage() {
         </div>
         <div className="flex flex-col gap-2 md:flex-row md:items-center">
           <Select value={resource} onValueChange={(value) => setResource(value as typeof resource)}>
-            <SelectTrigger className="w-[200px] rounded-full">
+            <SelectTrigger className="w-full rounded-full md:w-[200px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -104,7 +104,7 @@ export default function ReportsPage() {
             </SelectContent>
           </Select>
           <Button
-            className="rounded-full"
+            className="w-full rounded-full md:w-[200px]"
             onClick={() => {
               if (!permissions.canExportReports) {
                 return;

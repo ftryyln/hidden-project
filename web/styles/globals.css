@@ -73,3 +73,10 @@
 body {
   @apply bg-background text-foreground antialiased overflow-x-hidden;
 }
+
+html,
+body,
+#__next {
+  min-height: 100%;
+  overflow-x: hidden;
+}
