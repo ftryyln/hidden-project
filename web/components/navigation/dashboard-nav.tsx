@@ -103,12 +103,12 @@ function LinkPill({
       aria-current={link.isActive ? "page" : undefined}
       aria-disabled={link.disabled}
       className={cn(
+        className,
         "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition",
         link.isActive
           ? "bg-primary text-primary-foreground shadow-sm"
           : "text-muted-foreground hover:bg-muted/40",
         link.disabled && "pointer-events-none opacity-60",
-        className,
       )}
     >
       <Icon className="h-4 w-4" />

@@ -17,6 +17,7 @@ import { RecentActivityCard } from "./_components/recent-activity-card";
 import { TableCard } from "./_components/table-card";
 import { TrendCard } from "./_components/trend-card";
 import { WemixAmount } from "@/components/wemix-amount";
+import { NoGuildAccessCard } from "./_components/no-guild-access-card";
 
 export default function DashboardPage() {
   const toast = useToast();
@@ -53,6 +54,12 @@ export default function DashboardPage() {
     const guild = guildsQuery.data?.find((g) => g.id === guildId);
     return guild?.name ?? "Guild overview";
   }, [guildsQuery.data, guildId]);
+
+  const hasNoGuilds = guildsQuery.isSuccess && (guildsQuery.data?.length ?? 0) === 0;
+
+  if (hasNoGuilds) {
+    return <NoGuildAccessCard />;
+  }
 
   if (!guildId) {
     return (
