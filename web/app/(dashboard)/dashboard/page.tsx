@@ -125,9 +125,9 @@ export default function DashboardPage() {
                   >
                     {tx.tx_type}
                   </Badge>
-                  <span>{tx.category}</span>
+                  <span key="category-label">{tx.category}</span>
                 </div>,
-                <WemixAmount value={tx.amount} />,
+                <WemixAmount key="amount" value={tx.amount} />,
                 <Badge key="status" variant={tx.confirmed ? "success" : "warning"}>
                   {tx.confirmed ? "Confirmed" : "Pending"}
                 </Badge>,
@@ -152,7 +152,7 @@ export default function DashboardPage() {
                   <span className="font-medium">{loot.item_name}</span>
                   <span className="text-xs text-muted-foreground">{loot.boss_name}</span>
                 </div>,
-                <WemixAmount value={loot.estimated_value} />,
+                <WemixAmount key="value" value={loot.estimated_value} />,
                 <Badge key="status" variant={loot.distributed ? "success" : "warning"}>
                   {loot.distributed ? "Distributed" : "Pending"}
                 </Badge>,

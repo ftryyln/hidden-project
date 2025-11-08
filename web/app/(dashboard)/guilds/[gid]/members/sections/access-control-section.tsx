@@ -103,6 +103,7 @@ export function AccessControlSection({
       {
         header: "Actions",
         hideOnMobile: true,
+        className: "text-right",
         cell: (assignment) =>
           canManageRoles ? (
             <div className="flex justify-end">
@@ -114,7 +115,7 @@ export function AccessControlSection({
                 disabled={disableRoleChange(assignment)}
                 onClick={() => onRevokeAccess(assignment.user_id)}
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
           ) : (

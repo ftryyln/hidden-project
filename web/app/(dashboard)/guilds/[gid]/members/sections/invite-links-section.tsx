@@ -94,6 +94,7 @@ export function InviteLinksSection({
     {
       header: "Actions",
       hideOnMobile: true,
+      className: "text-right",
       cell: (invite) =>
         canManageInvites && invite.status === "pending" ? (
           <div className="flex justify-end">
@@ -104,7 +105,7 @@ export function InviteLinksSection({
               onClick={() => onRevokeInvite(invite.id)}
               aria-label="Revoke invite"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>
         ) : (

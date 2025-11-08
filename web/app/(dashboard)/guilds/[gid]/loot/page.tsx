@@ -261,7 +261,7 @@ export default function LootPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Loot & distribution</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Loot & Distribution</h2>
           <p className="text-sm text-muted-foreground">
             Track raid drops and distribute loot with officer validation.
           </p>
@@ -270,7 +270,7 @@ export default function LootPage() {
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button className="rounded-full px-4" onClick={() => setCreateOpen(true)}>
-                <Gift className="mr-2 h-4 w-4" /> Record loot
+                <Gift className="mr-2 h-4 w-4" /> Record Loot
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -299,7 +299,7 @@ export default function LootPage() {
         >
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Edit loot</DialogTitle>
+              <DialogTitle>Edit Loot</DialogTitle>
             </DialogHeader>
             <LootForm
               defaultValues={{
@@ -323,7 +323,7 @@ export default function LootPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Loot list</CardTitle>
+          <CardTitle>Loot List</CardTitle>
           <CardDescription>Distribute loot as soon as the raid is done.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -350,7 +350,7 @@ export default function LootPage() {
                   <TableHead>Item</TableHead>
                   <TableHead>Value</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -373,9 +373,9 @@ export default function LootPage() {
                         {loot.distributed ? "Distributed" : "Pending"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right">
                       {permissions.canManageLoot ? (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="inline-flex items-center justify-end gap-2">
                           <Button
                             size="icon"
                             variant="ghost"
@@ -392,7 +392,7 @@ export default function LootPage() {
                             disabled={deleteMutation.isPending || loot.distributed}
                             onClick={() => handleDeleteLoot(loot)}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4 text-destructive" />
                             <span className="sr-only">Delete loot</span>
                           </Button>
                           {!loot.distributed && (
@@ -426,7 +426,7 @@ export default function LootPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Loot history</CardTitle>
+          <CardTitle>Loot History</CardTitle>
           <CardDescription>Audit log for loot entries and distributions.</CardDescription>
         </CardHeader>
         <CardContent>

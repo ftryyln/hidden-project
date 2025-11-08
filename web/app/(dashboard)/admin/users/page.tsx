@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import {
   assignUserToGuild,
@@ -316,6 +317,7 @@ export default function AdminUsersPage() {
 
   const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
   const guilds = useMemo(() => guildsQuery.data ?? [], [guildsQuery.data]);
+  const [userSearch, setUserSearch] = useState("");
 
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
@@ -325,15 +327,36 @@ export default function AdminUsersPage() {
     });
   }, [users]);
 
+  const filteredUsers = useMemo(() => {
+    const query = userSearch.trim().toLowerCase();
+    if (!query) return sortedUsers;
+    return sortedUsers.filter((entry) => {
+      const name = (entry.display_name ?? "").toLowerCase();
+      const email = (entry.email ?? "").toLowerCase();
+      return name.includes(query) || email.includes(query);
+    });
+  }, [sortedUsers, userSearch]);
+
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-            <UserRoundX className="h-5 w-5" />
-            User Management
-          </CardTitle>
-          <CardDescription>Invite, assign, or remove users across all guilds.</CardDescription>
+        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+              <UserRoundX className="h-5 w-5" />
+              User Management
+            </CardTitle>
+            <CardDescription>Invite, assign, or remove users across all guilds.</CardDescription>
+          </div>
+          <div className="w-full md:w-72">
+            <Input
+              value={userSearch}
+              onChange={(event) => setUserSearch(event.target.value)}
+              placeholder="Search by name or email"
+              className="rounded-full border-border/60 bg-background/60"
+              aria-label="Search users"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           {usersQuery.isLoading ? (
@@ -350,16 +373,18 @@ export default function AdminUsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedUsers.length === 0 ? (
+                  {filteredUsers.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4}>
                         <div className="py-8 text-center text-sm text-muted-foreground">
-                          No users found. Invite members or have them register to manage access here.
+                          {userSearch.trim()
+                            ? "No users match your search."
+                            : "No users found. Invite members or have them register to manage access here."}
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedUsers.map((entry) => {
+                    filteredUsers.map((entry) => {
                       const isCurrentUser = entry.id === user?.id;
                       const currentAppRoleValue =
                         pendingAppRoles[entry.id] ?? (entry.app_role ?? "auto");

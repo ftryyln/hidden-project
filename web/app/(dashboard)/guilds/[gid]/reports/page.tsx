@@ -88,7 +88,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Financial reports</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Financial Reports</h2>
           <p className="text-sm text-muted-foreground">
             Monitor guild cash flow and export transaction data for audits.
           </p>
@@ -127,7 +127,7 @@ export default function ReportsPage() {
       <Card>
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <CardTitle>Reporting period</CardTitle>
+            <CardTitle>Reporting Period</CardTitle>
             <CardDescription>Filter data by transaction date range.</CardDescription>
           </div>
           <DateRangePicker value={period} onChange={setPeriod} />

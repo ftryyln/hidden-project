@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 interface TableRowData {
   key: string;
@@ -18,6 +19,7 @@ interface TableCardProps {
   loading?: boolean;
   emptyMessage: string;
   skeletonHeight?: number;
+  className?: string;
 }
 
 export function TableCard({
@@ -28,9 +30,10 @@ export function TableCard({
   loading,
   emptyMessage,
   skeletonHeight = 40,
+  className,
 }: TableCardProps) {
   return (
-    <Card>
+    <Card className={cn("min-w-0", className)}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -42,7 +45,7 @@ export function TableCard({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-full">
               <TableHeader>
                 <TableRow>
                   {columns.map((column) => (

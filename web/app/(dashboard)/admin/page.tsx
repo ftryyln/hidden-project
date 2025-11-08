@@ -297,7 +297,7 @@ export default function AdminGuildsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Super admin control</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Super Admin Control</h2>
           <p className="text-sm text-muted-foreground">
             Manage global guild records and ensure each guild has at least one admin.
           </p>
@@ -414,7 +414,7 @@ export default function AdminGuildsPage() {
                           disabled={deleteMutation.isPending}
                           onClick={() => handleDelete(guild)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-destructive" />
                           <span className="sr-only">Delete guild</span>
                         </Button>
                       </div>
@@ -533,4 +533,3 @@ export default function AdminGuildsPage() {
     </div>
   );
 }
-

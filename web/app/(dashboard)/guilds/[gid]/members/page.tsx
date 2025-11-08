@@ -12,7 +12,7 @@ import { listMembers, createMember, updateMember, toggleMemberStatus, type Membe
 
 import { useToast } from "@/components/ui/use-toast";
 import { formatDate } from "@/lib/format";
-import type { GuildInvite, GuildRole, Member } from "@/lib/types";
+import type { AuditAction, GuildInvite, GuildRole, Member } from "@/lib/types";
 import { toApiError } from "@/lib/api/errors";
 import { createGuildAccess, createGuildInvite, fetchGuildAccess, fetchGuildAuditLogs, fetchGuildInvites, revokeGuildAccess, revokeGuildInvite, updateGuildAccess } from "@/lib/api/guild-access";
 import type { CreateGuildAccessResponse } from "@/lib/api/guild-access";
@@ -32,10 +32,35 @@ const accessQueryKey = (guildId: string) =>
 const invitesQueryKey = (guildId: string) =>
   ["guild", guildId, "invites"] as const;
 
-const auditQueryKey = (guildId: string) =>
-  ["guild", guildId, "audit-logs"] as const;
+const auditQueryKey = (guildId: string, filter: string) =>
+  ["guild", guildId, "audit-logs", { filter }] as const;
 
-const AUDIT_PAGE_SIZE = 25;
+const AUDIT_PAGE_SIZE = 50;
+
+type AuditFilterKey = "all" | "transactions" | "roles" | "invites" | "loot" | "guild";
+
+const AUDIT_FILTER_OPTIONS: Array<{ value: AuditFilterKey; label: string }> = [
+  { value: "all", label: "All activity" },
+  { value: "transactions", label: "Transactions" },
+  { value: "roles", label: "Role changes" },
+  { value: "invites", label: "Invites" },
+  { value: "loot", label: "Loot" },
+  { value: "guild", label: "Guild updates" },
+];
+
+const AUDIT_FILTER_MAP: Record<AuditFilterKey, AuditAction[] | undefined> = {
+  all: undefined,
+  transactions: [
+    "TRANSACTION_CREATED",
+    "TRANSACTION_UPDATED",
+    "TRANSACTION_DELETED",
+    "TRANSACTION_CONFIRMED",
+  ],
+  roles: ["ROLE_ASSIGNED", "ROLE_REVOKED"],
+  invites: ["INVITE_CREATED", "INVITE_REVOKED", "INVITE_ACCEPTED"],
+  loot: ["LOOT_CREATED", "LOOT_UPDATED", "LOOT_DELETED", "LOOT_DISTRIBUTED"],
+  guild: ["GUILD_CREATED", "GUILD_UPDATED", "GUILD_DELETED"],
+};
 
 export default function GuildMembersPage() {
   const params = useParams<{ gid: string }>();
@@ -76,6 +101,7 @@ export default function GuildMembersPage() {
     token?: string | null;
     url?: string | null;
   } | null>(null);
+  const [auditFilter, setAuditFilter] = useState<AuditFilterKey>("all");
 
   useEffect(() => {
     const id = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -104,10 +130,15 @@ export default function GuildMembersPage() {
     enabled: Boolean(guildId && permissions.canManageInvites),
   });
 
+  const auditFilterActions = AUDIT_FILTER_MAP[auditFilter];
   const auditQuery = useInfiniteQuery({
-    queryKey: guildId ? auditQueryKey(guildId) : [],
+    queryKey: guildId ? auditQueryKey(guildId, auditFilter) : [],
     queryFn: async ({ pageParam }: { pageParam?: string }) =>
-      fetchGuildAuditLogs(guildId!, { limit: AUDIT_PAGE_SIZE, cursor: pageParam }),
+      fetchGuildAuditLogs(guildId!, {
+        limit: AUDIT_PAGE_SIZE,
+        cursor: pageParam,
+        actions: auditFilterActions,
+      }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.length < AUDIT_PAGE_SIZE ? undefined : lastPage[lastPage.length - 1].created_at,
@@ -474,6 +505,9 @@ export default function GuildMembersPage() {
             canLoadMore={auditQuery.hasNextPage}
             isFetchingMore={auditQuery.isFetchingNextPage}
             formatRelativeTime={formatRelativeTime}
+            filterValue={auditFilter}
+            onFilterChange={(value) => setAuditFilter(value as AuditFilterKey)}
+            filterOptions={AUDIT_FILTER_OPTIONS}
           />
         )}
       </div>

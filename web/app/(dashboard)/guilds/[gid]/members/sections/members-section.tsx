@@ -92,6 +92,7 @@ export function MembersSection({
       {
         header: "Actions",
         hideOnMobile: true,
+        className: "text-right",
         cell: (member) =>
           canManageMembers ? (
             <div className="flex justify-end gap-2">

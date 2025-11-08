@@ -171,19 +171,9 @@ export function DashboardMobileNav({
             <Menu className="h-5 w-5" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0">
             <DialogTitle className="text-left text-base font-semibold">Menu</DialogTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              onClick={() => setMenuOpen(false)}
-            >
-              <X className="h-5 w-5" />
-              <span className="sr-only">Close navigation menu</span>
-            </Button>
           </DialogHeader>
 
           <div className="mt-4 grid gap-5">
