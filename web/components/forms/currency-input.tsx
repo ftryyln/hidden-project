@@ -41,7 +41,7 @@ export function CurrencyInput({ value, onValueChange, ...props }: CurrencyInputP
             iconSize={12}
           />
         ) : (
-          "Enter the amount in Rupiah"
+          "Enter the amount in Wemix"
         )}
       </p>
     </div>

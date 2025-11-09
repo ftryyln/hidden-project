@@ -1,6 +1,6 @@
 "use client";
 
-import { Clipboard, Link, Mail, Trash2 } from "lucide-react";
+import { Link, Mail, Trash2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -181,15 +181,21 @@ export function InviteLinksSection({
           </p>
         )}
 
-        {lastInviteInfo && (lastInviteInfo.url || lastInviteInfo.token) && (
+        {lastInviteInfo && (
           <div className="rounded-2xl border border-border/60 bg-muted/10 p-4">
             <p className="text-sm font-semibold">
-              {lastInviteInfo.url ? "Latest invite link" : "Latest invite token"}
+              {lastInviteInfo.email
+                ? `Invite ready for ${lastInviteInfo.email}`
+                : lastInviteInfo.url
+                  ? "Latest invite link"
+                  : "Latest invite token"}
             </p>
             <p className="text-xs text-muted-foreground">
-              {lastInviteInfo.url
-                ? "Share this link with the invitee. It contains the one-time token and is only shown once."
-                : "Copy and share this token securely. It will only be displayed once."}
+              {lastInviteInfo.url || lastInviteInfo.token
+                ? "Share the details below with the invitee. Keys are shown only once."
+                : lastInviteInfo.email
+                  ? "We emailed the invite link directly to the recipient."
+                  : "Invite generated. Copy the link or token if available."}
             </p>
             <div className="mt-2 flex flex-col gap-2">
               {lastInviteInfo.url && (
@@ -206,18 +212,9 @@ export function InviteLinksSection({
                   </Button>
                 </div>
               )}
-              {lastInviteInfo.token && (
-                <div className="flex items-center gap-2">
-                  <Input readOnly value={lastInviteInfo.token ?? ""} />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => onCopyInvite(lastInviteInfo.token ?? "", "token")}
-                    aria-label="Copy invite token"
-                  >
-                    <Clipboard className="h-4 w-4" />
-                  </Button>
+              {!lastInviteInfo.url && lastInviteInfo.email && (
+                <div className="rounded-2xl border border-dashed border-border/40 px-3 py-2 text-xs text-muted-foreground">
+                  Invite email sent. Ask the recipient to check their inbox (and spam folder).
                 </div>
               )}
             </div>
