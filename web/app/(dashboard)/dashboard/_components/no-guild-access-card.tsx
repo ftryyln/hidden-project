@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { env } from "@/lib/env";
 
 const DISCORD_INVITE =
-  env.public.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.com/invite/5mrHnxx8wv";
+  env.public.NEXT_PUBLIC_DISCORD_INVITE_URL ?? "https://discord.gg/DbP82JmpyG";
 
 export function NoGuildAccessCard() {
   return (

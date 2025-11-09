@@ -14,6 +14,21 @@ export function LoginPageClient() {
   const router = useRouter();
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash;
+      const search = window.location.search;
+      const hashParams = hash ? new URLSearchParams(hash.slice(1)) : null;
+      const searchParams = search ? new URLSearchParams(search) : null;
+      const isRecovery =
+        hashParams?.get("type") === "recovery" || searchParams?.get("type") === "recovery";
+
+      if (isRecovery) {
+        const suffix = hash || search || "";
+        router.replace(`/reset-password${suffix}`);
+        return;
+      }
+    }
+
     if (status === "authenticated") {
       router.replace("/dashboard");
     }

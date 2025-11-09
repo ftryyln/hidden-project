@@ -40,9 +40,12 @@ export function LoginForm() {
       });
     } catch (error) {
       const apiError = await toApiError(error);
+      const requiresVerification = apiError.message.toLowerCase().includes("email not confirmed");
       toast({
-        title: "Login failed",
-        description: apiError.message,
+        title: requiresVerification ? "Verify your email" : "Login failed",
+        description: requiresVerification
+          ? "Check your inbox for the verification link, then try signing in again."
+          : apiError.message,
       });
     } finally {
       setSubmitting(false);

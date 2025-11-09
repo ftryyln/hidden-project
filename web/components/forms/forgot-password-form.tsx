@@ -45,9 +45,12 @@ export function ForgotPasswordForm() {
       });
     } catch (error) {
       const apiError = await toApiError(error);
+      const isRateLimited = apiError.status === 429;
       toast({
-        title: "Unable to send reset link",
-        description: apiError.message,
+        title: isRateLimited ? "Too many requests" : "Unable to send reset link",
+        description: isRateLimited
+          ? "Please wait a moment before requesting another reset email."
+          : apiError.message,
       });
     } finally {
       setSubmitting(false);
