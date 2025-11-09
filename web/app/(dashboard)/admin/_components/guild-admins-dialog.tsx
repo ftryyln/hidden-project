@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo, useState, useEffect } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -11,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AdminGuildSummary, GuildRoleAssignment } from "@/lib/types";
+import type { AdminGuildSummary, AdminUserSummary, GuildRoleAssignment } from "@/lib/types";
 
 interface GuildAdminsDialogProps {
   open: boolean;
@@ -25,6 +27,10 @@ interface GuildAdminsDialogProps {
   isLoadingAdmins: boolean;
   onRemoveAdmin: (userId: string) => void;
   removeDisabled: boolean;
+  availableAdmins: AdminUserSummary[];
+  availableAdminsLoading: boolean;
+  onSelectExisting: (userId: string) => void;
+  selectExistingDisabled: boolean;
 }
 
 export function GuildAdminsDialog({
@@ -39,7 +45,29 @@ export function GuildAdminsDialog({
   isLoadingAdmins,
   onRemoveAdmin,
   removeDisabled,
+  availableAdmins,
+  availableAdminsLoading,
+  onSelectExisting,
+  selectExistingDisabled,
 }: GuildAdminsDialogProps) {
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+    }
+  }, [open]);
+
+  const filteredAdmins = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return availableAdmins;
+    return availableAdmins.filter((user) => {
+      const name = (user.display_name ?? "").toLowerCase();
+      const email = (user.email ?? "").toLowerCase();
+      return name.includes(term) || email.includes(term);
+    });
+  }, [availableAdmins, search]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -103,6 +131,52 @@ export function GuildAdminsDialog({
                   onClick={() => onRemoveAdmin(assignment.user_id)}
                 >
                   Remove
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Existing guild admins
+          </h4>
+          <p className="text-xs text-muted-foreground">
+            Choose from verified users who already have the guild_admin application role.
+          </p>
+          <Input
+            placeholder="Search by name or email"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="rounded-full bg-muted/40"
+          />
+          <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+            {availableAdminsLoading && (
+              <div className="space-y-2">
+                <Skeleton className="h-12 rounded-2xl" />
+                <Skeleton className="h-12 rounded-2xl" />
+              </div>
+            )}
+            {!availableAdminsLoading && filteredAdmins.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-border/60 p-4 text-center text-sm text-muted-foreground">
+                No eligible guild_admin users found.
+              </div>
+            )}
+            {filteredAdmins.map((user) => (
+              <div
+                key={user.id}
+                className="flex items-center justify-between rounded-2xl border border-border/60 p-3"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium">{user.display_name ?? user.email ?? user.id}</span>
+                  <span className="text-xs text-muted-foreground">{user.email ?? "Email unavailable"}</span>
+                </div>
+                <Button
+                  size="sm"
+                  className="rounded-full"
+                  disabled={selectExistingDisabled}
+                  onClick={() => onSelectExisting(user.id)}
+                >
+                  Assign
                 </Button>
               </div>
             ))}

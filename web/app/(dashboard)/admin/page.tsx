@@ -32,12 +32,13 @@ import {
   fetchGuildAccess,
   revokeGuildAccess,
 } from "@/lib/api/guild-access";
-import type { AdminGuildSummary, GuildRoleAssignment } from "@/lib/types";
+import type { AdminGuildSummary, AdminUserSummary, GuildRoleAssignment } from "@/lib/types";
 import { toApiError } from "@/lib/api/errors";
 import { PlusCircle } from "lucide-react";
 import { GuildForm, type GuildFormValues } from "./_components/guild-form";
 import { GuildDirectoryTable } from "./_components/guild-directory-table";
 import { GuildAdminsDialog } from "./_components/guild-admins-dialog";
+import { listAdminUsers } from "@/lib/api/admin-users";
 
 export default function AdminGuildsPage() {
   const { status, user } = useAuth();
@@ -68,6 +69,11 @@ export default function AdminGuildsPage() {
     queryKey: ["admin", adminGuild?.id, "admins"],
     queryFn: () => fetchGuildAccess(adminGuild!.id),
     enabled: adminsOpen && Boolean(adminGuild?.id),
+  });
+  const adminUsersQuery = useQuery({
+    queryKey: ["admin", "users"],
+    queryFn: listAdminUsers,
+    enabled: adminsOpen,
   });
 
   const createMutation = useMutation({
@@ -133,9 +139,9 @@ export default function AdminGuildsPage() {
   });
 
   const addAdminMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (identifier: string) => {
       if (!adminGuild) throw new Error("Guild not selected");
-      const value = adminEmail.trim();
+      const value = (identifier ?? "").trim();
       if (!value) {
         throw new Error("Email or user ID is required");
       }
@@ -190,6 +196,13 @@ export default function AdminGuildsPage() {
     if (!adminsQuery.data) return [];
     return adminsQuery.data.filter((assignment) => assignment.role === "guild_admin");
   }, [adminsQuery.data]);
+
+  const availableGuildAdminUsers: AdminUserSummary[] = useMemo(() => {
+    const assignedIds = new Set(guildAdmins.map((assignment) => assignment.user_id));
+    return (adminUsersQuery.data ?? []).filter(
+      (user) => user.app_role === "guild_admin" && !assignedIds.has(user.id),
+    );
+  }, [adminUsersQuery.data, guildAdmins]);
 
   if (status === "loading" || !isSuperAdmin) {
     return (
@@ -289,10 +302,14 @@ export default function AdminGuildsPage() {
         guild={adminGuild}
         adminEmail={adminEmail}
         onAdminEmailChange={setAdminEmail}
-        onAssign={() => addAdminMutation.mutate()}
+        onAssign={() => addAdminMutation.mutate(adminEmail)}
         assignDisabled={addAdminMutation.isPending || !adminGuild}
         admins={guildAdmins}
         isLoadingAdmins={adminsQuery.isLoading}
+        availableAdmins={availableGuildAdminUsers}
+        availableAdminsLoading={adminUsersQuery.isLoading}
+        onSelectExisting={(userId) => addAdminMutation.mutate(userId)}
+        selectExistingDisabled={addAdminMutation.isPending || !adminGuild}
         onRemoveAdmin={(userId) => {
           if (!adminGuild) return;
           removeAdminMutation.mutate({ guildId: adminGuild.id, userId });
