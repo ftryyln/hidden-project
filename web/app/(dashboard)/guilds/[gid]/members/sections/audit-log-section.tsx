@@ -5,7 +5,6 @@ import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { SectionCard } from "@/components/responsive/section-card";
 import type { AuditLog } from "@/lib/types";
 import { formatLabel } from "@/lib/format";
@@ -166,7 +165,7 @@ export function AuditLogSection({
         )}
 
         {!loading && pageLogs.length > 0 && (
-          <ScrollArea className="h-[60vh] rounded-2xl border border-border/40 p-4">
+          <div className="rounded-2xl border border-border/40 p-4">
             <div className="space-y-3">
               {pageLogs.map((log) => {
                 const actorLabel = log.actor_name ?? "System";
@@ -220,7 +219,7 @@ export function AuditLogSection({
                 );
               })}
             </div>
-          </ScrollArea>
+          </div>
         )}
 
         {!loading && pageLogs.length > 0 && (
