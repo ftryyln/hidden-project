@@ -67,7 +67,7 @@ export async function listAdminUsers(): Promise<AdminUserSummary[]> {
       supabaseAdmin
         .from("profiles")
         .select("id, email, display_name, app_role, created_at")
-        .order("created_at", { ascending: true }),
+        .order("created_at", { ascending: false }),
       supabaseAdmin
         .from("guild_user_roles")
         .select("user_id, guild_id, role, revoked_at, guilds(name, tag)")

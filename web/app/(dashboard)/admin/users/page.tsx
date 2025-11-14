@@ -226,8 +226,13 @@ export default function AdminUsersPage() {
 
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
-      const aName = a.display_name ?? a.email ?? "";
-      const bName = b.display_name ?? b.email ?? "";
+      const aTime = a.created_at ? Date.parse(a.created_at) : 0;
+      const bTime = b.created_at ? Date.parse(b.created_at) : 0;
+      if (bTime !== aTime) {
+        return bTime - aTime;
+      }
+      const aName = (a.display_name ?? a.email ?? "").toLowerCase();
+      const bName = (b.display_name ?? b.email ?? "").toLowerCase();
       return aName.localeCompare(bName);
     });
   }, [users]);
