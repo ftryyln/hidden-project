@@ -31,7 +31,7 @@ export default function TransactionsPage() {
   const { selectedGuild, changeGuild } = useDashboardGuild();
 
   useEffect(() => {
-    if (guildId && guildId !== selectedGuild) {
+    if (guildId && !selectedGuild) {
       changeGuild(guildId);
     }
   }, [guildId, selectedGuild, changeGuild]);

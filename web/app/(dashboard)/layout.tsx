@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, usePathname } from "next/navigation";
@@ -11,10 +11,9 @@ import { UserMenu } from "@/components/navigation/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DashboardGuildProvider } from "@/components/dashboard/dashboard-guild-context";
 import { CommunitySidebar } from "@/components/community/community-sidebar";
+import { SiteFooter } from "@/components/navigation/site-footer";
 
 const STORAGE_KEY = "guild-manager:selected-guild";
-const SIDEBAR_WIDTH = 320;
-const SIDEBAR_GUTTER = 32;
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
@@ -22,8 +21,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
-  const mainShellRef = useRef<HTMLDivElement | null>(null);
-  const [sidebarLeft, setSidebarLeft] = useState<number | null>(null);
 
   // Extract guild id from the current path: /guilds/<gid>/...
   const guildFromPath = useMemo(() => {
@@ -34,12 +31,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   // When the URL already has a guild segment, honor it and persist locally.
   useEffect(() => {
-    if (!guildFromPath || guildFromPath === selectedGuild) return;
-    setSelectedGuild(guildFromPath);
+    if (!guildFromPath) return;
+    setSelectedGuild((prev) => (prev === guildFromPath ? prev : guildFromPath));
     try {
       window.localStorage.setItem(STORAGE_KEY, guildFromPath);
     } catch { }
-  }, [guildFromPath, selectedGuild]);
+  }, [guildFromPath]);
 
   // On first load without a guild in the URL, restore from localStorage.
   useEffect(() => {
@@ -72,18 +69,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
-
-  useEffect(() => {
-    const updateSidebarPosition = () => {
-      if (!mainShellRef.current) return;
-      const rect = mainShellRef.current.getBoundingClientRect();
-      setSidebarLeft(rect.left);
-    };
-
-    updateSidebarPosition();
-    window.addEventListener("resize", updateSidebarPosition);
-    return () => window.removeEventListener("resize", updateSidebarPosition);
-  }, []);
 
   if (status === "loading") {
     return (
@@ -138,32 +123,22 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* MAIN */}
         <main className="flex-1 px-4 pb-8 pt-32 sm:px-6 lg:pt-36">
-          <div ref={mainShellRef} className="container flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
-            <aside className="hidden lg:block lg:w-72 lg:flex-shrink-0">
-              <div
-                style={{
-                  position: "fixed",
-                  top: "7rem",
-                  left: Math.max(SIDEBAR_GUTTER, sidebarLeft ?? SIDEBAR_GUTTER),
-                  width: `${SIDEBAR_WIDTH}px`,
-                  maxHeight: "calc(100vh - 8rem)",
-                  overflowY: "auto",
-                  paddingRight: "0.75rem",
-                }}
-              >
-                <div className="space-y-6">
-                  <DashboardNav
-                    guildId={selectedGuild}
-                    isSuperAdmin={isSuperAdmin}
-                    showProfile
-                  />
-                  <CommunitySidebar />
-                </div>
+          <div className="container flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
+            <aside className="hidden lg:block lg:w-80 lg:flex-shrink-0">
+              <div className="sticky top-28 space-y-6">
+                <DashboardNav
+                  guildId={selectedGuild}
+                  isSuperAdmin={isSuperAdmin}
+                  showProfile
+                />
+                <CommunitySidebar />
               </div>
             </aside>
             <div className="flex-1 lg:min-h-[calc(100vh-10rem)]">{children}</div>
           </div>
         </main>
+
+        <SiteFooter />
       </div>
     </DashboardGuildProvider>
   );

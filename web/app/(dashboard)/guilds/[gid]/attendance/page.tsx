@@ -72,7 +72,7 @@ export default function GuildAttendancePage() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (guildId && guildId !== selectedGuild) {
+    if (guildId && !selectedGuild) {
       changeGuild(guildId);
     }
   }, [guildId, selectedGuild, changeGuild]);

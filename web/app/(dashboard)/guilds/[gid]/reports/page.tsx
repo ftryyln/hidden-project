@@ -32,7 +32,7 @@ export default function ReportsPage() {
   const { selectedGuild, changeGuild } = useDashboardGuild();
 
   useEffect(() => {
-    if (guildId && guildId !== selectedGuild) {
+    if (guildId && !selectedGuild) {
       changeGuild(guildId);
     }
   }, [guildId, selectedGuild, changeGuild]);
