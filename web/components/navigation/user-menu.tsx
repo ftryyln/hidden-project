@@ -12,9 +12,10 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
 import { formatDateTime, formatLabel } from "@/lib/format";
 import { useToast } from "@/components/ui/use-toast";
-import { LogOut, Shield } from "lucide-react";
+import { LogOut, Shield, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UserMenuProps {
@@ -31,6 +32,7 @@ export function UserMenu({
   appearance = "default",
 }: UserMenuProps = {}) {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const toast = useToast();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [dropdownWidth, setDropdownWidth] = useState<number | undefined>(undefined);
@@ -48,6 +50,11 @@ export function UserMenu({
       title: "Signed out",
       description: "See you next time!",
     });
+  };
+
+  const handleProfileNavigate = (event: Event) => {
+    event.preventDefault();
+    router.push("/profile");
   };
 
   const {
@@ -128,6 +135,11 @@ export function UserMenu({
         </DropdownMenuItem>
         <DropdownMenuItem className="text-xs text-muted-foreground">
           {formatDateTime(new Date())}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={handleProfileNavigate} className="gap-2">
+          <UserRound className="h-4 w-4" />
+          Profile settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={handleLogout} className="gap-2 text-destructive">

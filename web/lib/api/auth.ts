@@ -74,6 +74,20 @@ export async function fetchCurrentProfile(): Promise<AuthProfile> {
   return resolveEffectiveRole(data);
 }
 
+export async function updateProfileName(displayName: string): Promise<void> {
+  await api.patch("/auth/profile", { display_name: displayName });
+}
+
+export async function changePassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<void> {
+  await api.post("/auth/change-password", {
+    current_password: payload.currentPassword,
+    new_password: payload.newPassword,
+  });
+}
+
 export async function acceptInvite(token: string): Promise<{ guild_id: string; role: GuildRole }> {
   const { data } = await api.post<{ guild_id: string; role: GuildRole }>("/auth/accept-invite", {
     token,

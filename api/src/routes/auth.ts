@@ -170,6 +170,15 @@ const refreshSchema = z.object({
   refresh_token: z.string().min(10),
 });
 
+const updateProfileSchema = z.object({
+  display_name: z.string().min(1).max(120),
+});
+
+const changePasswordSchema = z.object({
+  current_password: z.string().min(6),
+  new_password: z.string().min(6),
+});
+
 router.post(
   "/auth/refresh",
   asyncHandler(async (req, res) => {
@@ -273,6 +282,78 @@ router.get(
       app_role: resolvedProfile.app_role ?? fallbackProfile.app_role ?? null,
       guild_roles: guildRoles ?? [],
     });
+  }),
+);
+
+router.patch(
+  "/auth/profile",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const parsed = updateProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new ApiError(422, "validation error", parsed.error.flatten().fieldErrors);
+    }
+    const user = req.user!;
+    const { display_name } = parsed.data;
+
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .update({ display_name })
+      .eq("id", user.id);
+
+    if (profileError) {
+      console.error("Failed to update profile", profileError);
+      throw new ApiError(500, "Unable to update profile");
+    }
+
+    const currentMetadata =
+      (user.user_metadata as Record<string, unknown> | undefined) ?? undefined;
+    const mergedMetadata = { ...(currentMetadata ?? {}), display_name };
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      user_metadata: mergedMetadata,
+    });
+    if (authError) {
+      console.warn("Failed to update auth metadata for profile change", authError);
+    }
+
+    res.status(204).send();
+  }),
+);
+
+router.post(
+  "/auth/change-password",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new ApiError(422, "validation error", parsed.error.flatten().fieldErrors);
+    }
+    const user = req.user!;
+    const email = user.email;
+    if (!email) {
+      throw new ApiError(400, "Email is required to change password");
+    }
+
+    const { current_password, new_password } = parsed.data;
+    const { error: verifyError } = await supabaseAuth.auth.signInWithPassword({
+      email,
+      password: current_password,
+    });
+
+    if (verifyError) {
+      throw new ApiError(400, "Current password is incorrect");
+    }
+
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      password: new_password,
+    });
+
+    if (updateError) {
+      console.error("Failed to update password", updateError);
+      throw new ApiError(500, "Unable to update password");
+    }
+
+    res.status(204).send();
   }),
 );
 
