@@ -147,11 +147,11 @@ export function MembersSection({
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-sm font-semibold uppercase text-secondary-foreground">
                             {getInitials(member.in_game_name)}
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold leading-tight text-foreground">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <p className="truncate font-semibold text-foreground">
                               {member.in_game_name}
                             </p>
-                            <p className="text-xs text-muted-foreground">{discord}</p>
+                            <span className="truncate text-xs text-muted-foreground">• {discord}</span>
                           </div>
                         </div>
                       </TableCell>
