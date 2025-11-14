@@ -21,7 +21,44 @@ export type AuditAction =
   | "LOOT_CREATED"
   | "LOOT_UPDATED"
   | "LOOT_DELETED"
-  | "LOOT_DISTRIBUTED";
+  | "LOOT_DISTRIBUTED"
+  | "PAYROLL_BATCH_CREATED";
+
+export type PayrollSource = "TRANSACTION" | "LOOT";
+export type PayrollMode = "EQUAL" | "PERCENTAGE" | "FIXED";
+
+export interface PayrollItemRecord {
+  id: string;
+  batch_id: string;
+  member_id: string;
+  member_name?: string;
+  amount: number;
+  percentage?: number | null;
+  created_at: string;
+}
+
+export interface PayrollBatchRecord {
+  id: string;
+  guild_id: string;
+  reference_code?: string | null;
+  source: PayrollSource;
+  mode: PayrollMode;
+  total_amount: number;
+  balance_before: number;
+  balance_after: number;
+  members_count: number;
+  period_from?: string | null;
+  period_to?: string | null;
+  notes?: string | null;
+  distributed_by_user_id: string;
+  distributed_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PayrollBatchWithItems extends PayrollBatchRecord {
+  items: PayrollItemRecord[];
+}
 
 export interface GuildSummary {
   id: string;

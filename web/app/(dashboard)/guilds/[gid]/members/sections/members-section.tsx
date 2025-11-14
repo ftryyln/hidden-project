@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { Pencil, Power, UserPlus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -9,16 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionCard } from "@/components/responsive/section-card";
 import { FilterBar } from "@/components/responsive/filter-bar";
-import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/responsive/responsive-table";
-import { ActionMenu, type ActionMenuItem } from "@/components/responsive/action-menu";
 import type { Member } from "@/lib/types";
 import { formatDate } from "@/lib/format";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface MembersSectionProps {
   members: Member[];
   total: number;
   isLoading: boolean;
   emptyState: boolean;
+  filtersActive: boolean;
   canManageMembers: boolean;
   searchValue: string;
   onSearchChange: (value: string) => void;
@@ -28,6 +27,9 @@ interface MembersSectionProps {
   onEditMember: (member: Member) => void;
   onToggleMemberStatus: (member: Member, nextState: boolean) => void;
   isMutating?: boolean;
+  page?: number;
+  totalPages?: number;
+  onPageChange?: (page: number) => void;
 }
 
 export function MembersSection({
@@ -35,6 +37,7 @@ export function MembersSection({
   total,
   isLoading,
   emptyState,
+  filtersActive,
   canManageMembers,
   searchValue,
   onSearchChange,
@@ -44,112 +47,10 @@ export function MembersSection({
   onEditMember,
   onToggleMemberStatus,
   isMutating = false,
+  page = 1,
+  totalPages = 1,
+  onPageChange,
 }: MembersSectionProps) {
-  const columns: ResponsiveTableColumn<Member>[] = useMemo(
-    () => [
-      {
-        header: "Name",
-        cell: (member) => {
-          const contact = (member.contact ?? {}) as Record<string, unknown>;
-          const discord =
-            typeof contact.discord === "string" && contact.discord.trim().length > 0
-              ? (contact.discord as string)
-              : "-";
-          return (
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-sm font-semibold uppercase text-secondary-foreground">
-                {getInitials(member.in_game_name)}
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold leading-tight text-foreground">{member.in_game_name}</p>
-                <p className="text-xs text-muted-foreground">{discord}</p>
-              </div>
-            </div>
-          );
-        },
-        stackedLabel: "Name",
-      },
-      {
-        header: "Role",
-        cell: (member) => member.role_in_guild,
-        stackedLabel: "Role",
-      },
-      {
-        header: "Joined",
-        cell: (member) => formatDate(member.join_date ?? ""),
-        stackedLabel: "Joined",
-        hideOnMobile: true,
-      },
-      {
-        header: "Status",
-        cell: (member) => (
-          <Badge variant={member.is_active ? "success" : "secondary"}>
-            {member.is_active ? "ACTIVE" : "INACTIVE"}
-          </Badge>
-        ),
-        stackedLabel: "Status",
-      },
-      {
-        header: "Actions",
-        hideOnMobile: true,
-        className: "text-right",
-        cell: (member) =>
-          canManageMembers ? (
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                aria-label={`Edit ${member.in_game_name}`}
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => onEditMember(member)}
-                disabled={isMutating}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                aria-label={member.is_active ? "Deactivate member" : "Activate member"}
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-full"
-                onClick={() => onToggleMemberStatus(member, !member.is_active)}
-                disabled={isMutating}
-              >
-                <Power className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground">No actions</span>
-          ),
-      },
-    ],
-    [canManageMembers, isMutating, onEditMember, onToggleMemberStatus],
-  );
-
-  const mobileActions = (member: Member) => {
-    if (!canManageMembers) {
-      return null;
-    }
-
-    const items: ActionMenuItem[] = [
-      {
-        label: "Edit",
-        onSelect: () => onEditMember(member),
-        icon: <Pencil className="h-4 w-4" />,
-        disabled: isMutating,
-      },
-      {
-        label: member.is_active ? "Deactivate" : "Activate",
-        onSelect: () => onToggleMemberStatus(member, !member.is_active),
-        icon: <Power className="h-4 w-4" />,
-        disabled: isMutating,
-      },
-    ];
-
-    return <ActionMenu ariaLabel={`Actions for ${member.in_game_name}`} items={items} />;
-  };
-
   return (
     <SectionCard
       title="Roster"
@@ -211,14 +112,118 @@ export function MembersSection({
           </div>
         )}
 
-        {!isLoading && !emptyState && (
-          <ResponsiveTable
-            columns={columns}
-            data={members}
-            getRowId={(row) => row.id}
-            emptyMessage="No members found."
-            renderMobileRowExtras={mobileActions}
-          />
+        {!isLoading && !emptyState && members.length === 0 && filtersActive && (
+          <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border/60 p-10 text-center">
+            <h3 className="text-lg font-semibold">No members match your filters</h3>
+            <p className="text-sm text-muted-foreground">Try adjusting search keywords or visibility filters.</p>
+          </div>
+        )}
+
+        {!isLoading && members.length > 0 && (
+          <div className="overflow-x-auto rounded-2xl border border-border/40">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Joined</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {members.map((member) => {
+                  const contact = (member.contact ?? {}) as Record<string, unknown>;
+                  const discord =
+                    typeof contact.discord === "string" && contact.discord.trim().length > 0
+                      ? (contact.discord as string)
+                      : "-";
+                  return (
+                    <TableRow key={member.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-sm font-semibold uppercase text-secondary-foreground">
+                            {getInitials(member.in_game_name)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold leading-tight text-foreground">
+                              {member.in_game_name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{discord}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{member.role_in_guild}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {member.join_date ? formatDate(member.join_date) : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={member.is_active ? "success" : "secondary"}>
+                          {member.is_active ? "ACTIVE" : "INACTIVE"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {canManageMembers ? (
+                          <div className="inline-flex items-center gap-2">
+                            <Button
+                              type="button"
+                              aria-label={`Edit ${member.in_game_name}`}
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-full"
+                              onClick={() => onEditMember(member)}
+                              disabled={isMutating}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              aria-label={member.is_active ? "Deactivate member" : "Activate member"}
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-full"
+                              onClick={() => onToggleMemberStatus(member, !member.is_active)}
+                              disabled={isMutating}
+                            >
+                              <Power className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No actions</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {!isLoading && members.length > 0 && totalPages > 1 && onPageChange && (
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <p>
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => onPageChange(Math.max(1, page - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </SectionCard>

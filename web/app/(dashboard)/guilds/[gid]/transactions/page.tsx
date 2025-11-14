@@ -50,6 +50,7 @@ export default function TransactionsPage() {
     }
   }, [permissions.canManageTransactions]);
 
+  const PAGE_SIZE = 5;
   const [filters, setFilters] = useState<{
     range: DateRange;
     type?: TransactionType | "all";
@@ -57,6 +58,8 @@ export default function TransactionsPage() {
     range: {},
     type: "all",
   });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -228,6 +231,32 @@ export default function TransactionsPage() {
     [transactionsQuery.data?.transactions],
   );
 
+  const filteredTransactions = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return transactions;
+    return transactions.filter((tx) => {
+      const category = (tx.category ?? "").toLowerCase();
+      const description = (tx.description ?? "").toLowerCase();
+      const creator = (tx.created_by_name ?? tx.created_by ?? "").toLowerCase();
+      return category.includes(query) || description.includes(query) || creator.includes(query);
+    });
+  }, [transactions, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters.range.from, filters.range.to, filters.type, searchTerm]);
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  const pagedTransactions = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredTransactions.slice(start, start + PAGE_SIZE);
+  }, [filteredTransactions, page]);
+
   const transactionHistory = historyQuery.data ?? [];
   const isLoading = transactionsQuery.isLoading;
   const summary = useMemo(() => {
@@ -240,6 +269,12 @@ export default function TransactionsPage() {
       { income: 0, expense: 0 },
     );
   }, [transactions]);
+
+  const filtersActive =
+    Boolean(filters.range.from) ||
+    Boolean(filters.range.to) ||
+    (filters.type && filters.type !== "all") ||
+    Boolean(searchTerm.trim());
 
   return (
     <div className="space-y-6">
@@ -311,7 +346,14 @@ export default function TransactionsPage() {
         onRangeChange={(range) => setFilters((prev) => ({ ...prev, range }))}
         onTypeChange={(type) => setFilters((prev) => ({ ...prev, type }))}
         onRefresh={() => queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions"] })}
-        transactions={transactions}
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        transactions={pagedTransactions}
+        totalItems={filteredTransactions.length}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        filtersActive={filtersActive}
         isLoading={isLoading}
         canManageTransactions={permissions.canManageTransactions}
         onEdit={handleEditTransaction}

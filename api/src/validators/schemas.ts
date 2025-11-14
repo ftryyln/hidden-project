@@ -76,3 +76,34 @@ export const exportCsvSchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
 });
+
+const payrollSourceEnum = z.enum(["TRANSACTION", "LOOT"]);
+const payrollModeEnum = z.enum(["EQUAL", "PERCENTAGE", "FIXED"]);
+
+export const payrollSummaryQuerySchema = z.object({
+  source: payrollSourceEnum.optional(),
+});
+
+const payrollMemberSchema = z.object({
+  memberId: z.string().uuid(),
+  amount: z.coerce.number().min(0).optional(),
+  percentage: z.coerce.number().min(0).optional(),
+});
+
+export const payrollBatchCreateSchema = z.object({
+  source: payrollSourceEnum,
+  mode: payrollModeEnum,
+  periodFrom: z.string().optional().nullable(),
+  periodTo: z.string().optional().nullable(),
+  totalAmount: z.coerce.number().positive(),
+  members: z.array(payrollMemberSchema).min(1),
+  notes: z.string().max(2000).optional().nullable(),
+});
+
+export const payrollListQuerySchema = paginationSchema.extend({
+  source: payrollSourceEnum.optional(),
+  distributedByUserId: z.string().uuid().optional(),
+  memberId: z.string().uuid().optional(),
+  fromDate: z.string().optional(),
+  toDate: z.string().optional(),
+});

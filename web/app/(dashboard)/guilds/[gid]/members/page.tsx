@@ -33,7 +33,7 @@ export default function GuildMembersPage() {
 
   return (
     <>
-      <header className="flex flex-col gap-3 border-b border-border/40 pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Members</h1>
           <p className="text-sm text-muted-foreground">

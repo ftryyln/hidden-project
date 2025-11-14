@@ -93,7 +93,7 @@ export function TransactionForm({
       </div>
       <div className="grid gap-2">
         <Label htmlFor="category">Category</Label>
-        <Input id="category" placeholder="guild_donation" {...form.register("category")} />
+        <Input id="category" placeholder="Guild Donation" {...form.register("category")} />
         {form.formState.errors.category && (
           <p className="text-xs text-destructive">
             {form.formState.errors.category.message}

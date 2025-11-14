@@ -1,7 +1,7 @@
 import type { AuditAction } from "@/lib/types";
 
-export const membersQueryKey = (guildId: string, search: string, showInactive: boolean) =>
-  ["guild", guildId, "members", { search, showInactive }] as const;
+export const membersQueryKey = (guildId: string, search: string, showInactive: boolean, page: number) =>
+  ["guild", guildId, "members", { search, showInactive, page }] as const;
 
 export const accessQueryKey = (guildId: string) => ["guild", guildId, "access-control"] as const;
 

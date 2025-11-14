@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/hooks/use-auth";
 import { UsersSkeleton } from "./_components/users-skeleton";
 import { AssignGuildDialog } from "./_components/assign-guild-dialog";
@@ -31,6 +33,13 @@ const appRoleOptions: Array<{ value: UserRole | "auto"; label: string }> = [
   { value: "viewer", label: "Viewer" },
   { value: "auto", label: "Auto (derive from guild access)" },
 ];
+
+const roleFilterOptions: Array<{ value: UserRole | "auto" | "all"; label: string }> = [
+  { value: "all", label: "All roles" },
+  ...appRoleOptions,
+];
+
+const PAGE_SIZE = 5;
 
 export default function AdminUsersPage() {
   const { status, user } = useAuth();
@@ -212,6 +221,8 @@ export default function AdminUsersPage() {
   const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
   const guilds = useMemo(() => guildsQuery.data ?? [], [guildsQuery.data]);
   const [userSearch, setUserSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<UserRole | "auto" | "all">("all");
+  const [page, setPage] = useState(1);
 
   const sortedUsers = useMemo(() => {
     return [...users].sort((a, b) => {
@@ -223,13 +234,33 @@ export default function AdminUsersPage() {
 
   const filteredUsers = useMemo(() => {
     const query = userSearch.trim().toLowerCase();
-    if (!query) return sortedUsers;
     return sortedUsers.filter((entry) => {
-      const name = (entry.display_name ?? "").toLowerCase();
-      const email = (entry.email ?? "").toLowerCase();
-      return name.includes(query) || email.includes(query);
+      const matchesSearch =
+        !query ||
+        (entry.display_name ?? "").toLowerCase().includes(query) ||
+        (entry.email ?? "").toLowerCase().includes(query);
+      const matchesRole =
+        roleFilter === "all" ? true : (entry.app_role ?? "auto") === roleFilter;
+      return matchesSearch && matchesRole;
     });
-  }, [sortedUsers, userSearch]);
+  }, [sortedUsers, userSearch, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [userSearch, roleFilter]);
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  const pagedUsers = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredUsers.slice(start, start + PAGE_SIZE);
+  }, [filteredUsers, page]);
+
+  const filtersActive = Boolean(userSearch.trim()) || roleFilter !== "all";
 
   return (
     <div className="space-y-6">
@@ -242,14 +273,26 @@ export default function AdminUsersPage() {
             </CardTitle>
             <CardDescription>Invite, assign, or remove users across all guilds.</CardDescription>
           </div>
-          <div className="w-full md:w-72">
+          <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
             <Input
               value={userSearch}
               onChange={(event) => setUserSearch(event.target.value)}
               placeholder="Search by name or email"
-              className="rounded-full border-border/60 bg-background/60"
+              className="rounded-full border-border/60 bg-background/60 md:w-64"
               aria-label="Search users"
             />
+            <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as typeof roleFilter)}>
+              <SelectTrigger className="rounded-full border-border/60 bg-background/60 md:w-48">
+                <SelectValue placeholder="Filter by role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roleFilterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>
@@ -257,9 +300,9 @@ export default function AdminUsersPage() {
             <UsersSkeleton />
           ) : (
             <UsersTable
-              users={filteredUsers}
+              users={pagedUsers}
               loading={usersQuery.isLoading}
-              isSearchActive={Boolean(userSearch.trim())}
+              isSearchActive={filtersActive}
               guilds={guilds}
               appRoleOptions={appRoleOptions}
               pendingAppRoles={pendingAppRoles}
@@ -272,6 +315,31 @@ export default function AdminUsersPage() {
               deleteDisabled={deleteMutation.isPending}
               onChangeAppRole={(userId, role) => updateRoleMutation.mutate({ userId, appRole: role })}
             />
+          )}
+          {!usersQuery.isLoading && filteredUsers.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+              <p>
+                Page {page} of {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

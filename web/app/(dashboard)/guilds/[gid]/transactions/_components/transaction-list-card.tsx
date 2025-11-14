@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { DateRangePicker, type DateRange } from "@/components/forms/date-range-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,7 +31,14 @@ interface TransactionListCardProps {
   onRangeChange: (range: DateRange) => void;
   onTypeChange: (type: TransactionType | "all") => void;
   onRefresh: () => void;
+  searchValue: string;
+  onSearchChange: (value: string) => void;
   transactions: Transaction[];
+  totalItems: number;
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  filtersActive: boolean;
   isLoading: boolean;
   canManageTransactions: boolean;
   onEdit: (transaction: Transaction) => void;
@@ -45,7 +53,14 @@ export function TransactionListCard({
   onRangeChange,
   onTypeChange,
   onRefresh,
+  searchValue,
+  onSearchChange,
   transactions,
+  totalItems,
+  page,
+  totalPages,
+  onPageChange,
+  filtersActive,
   isLoading,
   canManageTransactions,
   onEdit,
@@ -78,6 +93,13 @@ export function TransactionListCard({
               <SelectItem value="transfer">Transfer</SelectItem>
             </SelectContent>
           </Select>
+          <Input
+            value={searchValue}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search transactions"
+            className="rounded-full border-border/60 md:w-64"
+            aria-label="Search transactions"
+          />
           <Button variant="ghost" onClick={onRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
@@ -97,7 +119,9 @@ export function TransactionListCard({
         {!isLoading && transactions.length === 0 && (
           <div className="rounded-3xl border border-dashed border-border/60 p-12 text-center">
             <p className="text-sm text-muted-foreground">
-              No transactions in this period yet. Create one or adjust the filters.
+              {filtersActive
+                ? "No transactions match the current filters."
+                : "No transactions in this period yet. Create one or adjust the filters."}
             </p>
           </div>
         )}
@@ -118,9 +142,9 @@ export function TransactionListCard({
               <TableBody>
                 {transactions.map((tx) => (
                   <TableRow key={tx.id}>
-                    <TableCell>{formatDateTime(tx.created_at)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{formatDateTime(tx.created_at)}</TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
+                      <div className="flex items-center gap-3 whitespace-nowrap">
                         <Badge
                           variant={
                             tx.tx_type === "income"
@@ -139,7 +163,9 @@ export function TransactionListCard({
                     <TableCell>
                       <WemixAmount value={tx.amount} />
                     </TableCell>
-                    <TableCell>{tx.created_by_name ?? tx.created_by}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {tx.created_by_name ?? tx.created_by}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={tx.confirmed ? "success" : "warning"}>
                         {tx.confirmed ? "Confirmed" : "Pending"}
@@ -194,6 +220,32 @@ export function TransactionListCard({
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+
+        {!isLoading && totalItems > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <p>
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => onPageChange(Math.max(1, page - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

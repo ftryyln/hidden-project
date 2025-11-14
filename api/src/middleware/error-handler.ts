@@ -9,6 +9,12 @@ export function errorHandler(
 ) {
   if (err instanceof ApiError) {
     res.status(err.status).json({
+      data: null,
+      error: {
+        code: err.status,
+        message: err.message,
+      },
+      details: err.details,
       message: err.message,
       errors: err.details,
     });
@@ -17,6 +23,11 @@ export function errorHandler(
 
   console.error(err);
   res.status(500).json({
+    data: null,
+    error: {
+      code: 500,
+      message: "Unexpected error",
+    },
     message: "Unexpected error",
   });
 }

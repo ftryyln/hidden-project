@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SectionCard } from "@/components/responsive/section-card";
 import type { AuditLog } from "@/lib/types";
+import { formatLabel } from "@/lib/format";
 import {
   Select,
   SelectContent,
@@ -14,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 const UUID_REGEXP = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const WHITELISTED_METADATA_KEYS = new Set([
@@ -28,9 +31,7 @@ const WHITELISTED_METADATA_KEYS = new Set([
 ]);
 
 function formatKeyLabel(key: string): string {
-  return key
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return formatLabel(key);
 }
 
 function formatMetadataValue(key: string, value: unknown): string {
@@ -42,7 +43,7 @@ function formatMetadataValue(key: string, value: unknown): string {
   }
   if (typeof value === "string") {
     if (["role", "source", "tx_type", "category", "description", "item_name"].includes(key)) {
-      return formatKeyLabel(value.toLowerCase());
+      return formatLabel(value);
     }
     return value;
   }
@@ -74,12 +75,51 @@ export function AuditLogSection({
   onFilterChange,
   filterOptions,
 }: AuditLogSectionProps) {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 5;
+
+  const filteredLogs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return logs;
+    return logs.filter((log) => {
+      const action = log.action.toLowerCase();
+      const actor = (log.actor_name ?? "").toLowerCase();
+      const details = JSON.stringify(log.metadata ?? {}).toLowerCase();
+      return action.includes(query) || actor.includes(query) || details.includes(query);
+    });
+  }, [logs, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterValue]);
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  const pageLogs = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredLogs.slice(start, start + PAGE_SIZE);
+  }, [filteredLogs, page]);
+
+  const filtersActive = Boolean(search.trim()) || filterValue !== "all";
+
   return (
     <SectionCard
       title="Audit log"
       description="Track invite activity and access changes."
       actions={
         <div className="flex flex-wrap gap-2">
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search activity"
+            className="rounded-full border-border/60 text-sm"
+            aria-label="Search audit log"
+          />
           <Select value={filterValue} onValueChange={onFilterChange}>
             <SelectTrigger className="w-40 rounded-full border-border/60 bg-muted/40 text-xs font-semibold uppercase tracking-wide">
               <SelectValue placeholder="Filter actions" />
@@ -121,10 +161,14 @@ export function AuditLogSection({
           <p className="text-sm text-muted-foreground">No audit events recorded yet.</p>
         )}
 
-        {!loading && logs.length > 0 && (
+        {!loading && logs.length > 0 && pageLogs.length === 0 && filtersActive && (
+          <p className="text-sm text-muted-foreground">No audit events match your filters.</p>
+        )}
+
+        {!loading && pageLogs.length > 0 && (
           <ScrollArea className="h-[60vh] rounded-2xl border border-border/40 p-4">
             <div className="space-y-3">
-              {logs.map((log) => {
+              {pageLogs.map((log) => {
                 const actorLabel = log.actor_name ?? "System";
                 const derivedTarget =
                   typeof log.metadata?.target_name === "string"
@@ -148,7 +192,7 @@ export function AuditLogSection({
                 return (
                   <div key={log.id} className="rounded-2xl border border-border/60 bg-muted/10 p-4">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-semibold uppercase">{log.action.replace(/_/g, " ")}</span>
+                      <span className="font-semibold">{formatLabel(log.action)}</span>
                       <span className="text-xs text-muted-foreground">{formatRelativeTime(log.created_at)}</span>
                     </div>
                     <div className="mt-1 text-sm">
@@ -177,6 +221,32 @@ export function AuditLogSection({
               })}
             </div>
           </ScrollArea>
+        )}
+
+        {!loading && pageLogs.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <p>
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </SectionCard>

@@ -90,17 +90,17 @@ export default function DashboardPage() {
           {
             title: "Guild balance",
             icon: <Wallet className="h-5 w-5" />,
-            value: <WemixAmount value={data?.kpis.guild_balance ?? 0} />,
+            value: <WemixAmount value={data?.kpis.guild_balance ?? 0} className="text-3xl font-bold" iconSize={24} iconClassName="h-6 w-6" />,
           },
           {
             title: "Income this month",
             icon: <TrendingUp className="h-5 w-5 text-emerald-400" />,
-            value: <WemixAmount value={data?.kpis.income_month ?? 0} />,
+            value: <WemixAmount value={data?.kpis.income_month ?? 0} className="text-3xl font-bold" iconSize={24} iconClassName="h-6 w-6" />,
           },
           {
             title: "Expense this month",
             icon: <TrendingDown className="h-5 w-5 text-amber-400" />,
-            value: <WemixAmount value={data?.kpis.expense_month ?? 0} />,
+            value: <WemixAmount value={data?.kpis.expense_month ?? 0} className="text-3xl font-bold" iconSize={24} iconClassName="h-6 w-6" />,
           },
         ]}
       />

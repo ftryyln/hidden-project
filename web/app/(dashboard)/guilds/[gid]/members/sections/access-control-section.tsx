@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trash2, Shield } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectionCard } from "@/components/responsive/section-card";
-import { ResponsiveTable, type ResponsiveTableColumn } from "@/components/responsive/responsive-table";
-import { ActionMenu } from "@/components/responsive/action-menu";
 import type { GuildRole, GuildRoleAssignment } from "@/lib/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import { ROLE_OPTIONS } from "./constants";
+
+type RoleFilter = GuildRole | "all";
 
 interface AccessControlSectionProps {
   assignments: GuildRoleAssignment[];
@@ -46,85 +47,36 @@ export function AccessControlSection({
   disableRoleChange,
   formatRelativeTime,
 }: AccessControlSectionProps) {
-  const columns: ResponsiveTableColumn<GuildRoleAssignment>[] = useMemo(
-    () => [
-      {
-        header: "User",
-        cell: (assignment) => (
-          <div className="flex flex-col">
-            <span className="font-medium">
-              {assignment.user?.display_name ?? assignment.user?.email ?? assignment.user_id}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {assignment.user?.email ?? "Pending user"}
-            </span>
-          </div>
-        ),
-      },
-      {
-        header: "Role",
-        cell: (assignment) => (
-          <Select
-            value={assignment.role}
-            onValueChange={(value) => onAssignmentRoleChange(assignment.user_id, value as GuildRole)}
-            disabled={!canManageRoles || disableRoleChange(assignment)}
-          >
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ROLE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ),
-      },
-      {
-        header: "Source",
-        cell: (assignment) => (
-          <Badge variant="outline" className="uppercase">
-            {assignment.source ?? "manual"}
-          </Badge>
-        ),
-        stackedLabel: "Source",
-      },
-      {
-        header: "Updated",
-        cell: (assignment) => (
-          <span className="text-sm text-muted-foreground">
-            {formatRelativeTime(assignment.assigned_at)}
-          </span>
-        ),
-        hideOnMobile: true,
-      },
-      {
-        header: "Actions",
-        hideOnMobile: true,
-        className: "text-right",
-        cell: (assignment) =>
-          canManageRoles ? (
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                aria-label="Revoke access"
-                variant="ghost"
-                size="icon"
-                disabled={disableRoleChange(assignment)}
-                onClick={() => onRevokeAccess(assignment.user_id)}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground">No actions</span>
-          ),
-      },
-    ],
-    [canManageRoles, disableRoleChange, formatRelativeTime, onAssignmentRoleChange, onRevokeAccess],
-  );
+  const PAGE_SIZE = 5;
+  const [page, setPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+
+  const filteredAssignments = useMemo(() => {
+    return assignments.filter((assignment) => {
+      const display = `${assignment.user?.display_name ?? ""} ${assignment.user?.email ?? ""}`.toLowerCase();
+      const matchesSearch = normalizedSearch.length === 0 || display.includes(normalizedSearch);
+      const matchesRole = roleFilter === "all" || assignment.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [assignments, normalizedSearch, roleFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [normalizedSearch, roleFilter, assignments.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAssignments.length / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  const pageAssignments = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredAssignments.slice(start, start + PAGE_SIZE);
+  }, [filteredAssignments, page]);
 
   return (
     <SectionCard
@@ -164,7 +116,12 @@ export function AccessControlSection({
                 </SelectContent>
               </Select>
             </div>
-            <Button type="button" className="md:self-center" disabled={granting} onClick={onGrantAccess}>
+            <Button
+              type="button"
+              className="rounded-full lg:justify-self-end lg:self-end"
+              disabled={granting}
+              onClick={onGrantAccess}
+            >
               {granting ? "Granting..." : "Grant access"}
             </Button>
           </div>
@@ -188,27 +145,132 @@ export function AccessControlSection({
         )}
 
         {!isLoading && assignments.length > 0 && (
-          <ResponsiveTable
-            columns={columns}
-            data={assignments}
-            getRowId={(row) => row.id}
-            renderMobileRowExtras={(assignment) =>
-              canManageRoles ? (
-                <ActionMenu
-                  ariaLabel={`Access actions for ${assignment.user?.display_name ?? assignment.user?.email ?? assignment.user_id}`}
-                  items={[
-                    {
-                      label: "Revoke access",
-                      destructive: true,
-                      disabled: disableRoleChange(assignment),
-                      onSelect: () => onRevokeAccess(assignment.user_id),
-                      icon: <Trash2 className="h-4 w-4" />,
-                    },
-                  ]}
-                />
-              ) : undefined
-            }
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Input
+              type="search"
+              placeholder="Search by name or email"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="rounded-full sm:max-w-sm"
+            />
+            <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as RoleFilter)}>
+              <SelectTrigger className="w-full rounded-full sm:w-52">
+                <SelectValue placeholder="Filter role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                {ROLE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {!isLoading && pageAssignments.length > 0 && (
+          <div className="overflow-x-auto rounded-2xl border border-border/40">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageAssignments.map((assignment) => (
+                  <TableRow key={assignment.id}>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {assignment.user?.display_name ?? assignment.user?.email ?? assignment.user_id}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {assignment.user?.email ?? "Pending user"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <Select
+                        value={assignment.role}
+                        onValueChange={(value) => onAssignmentRoleChange(assignment.user_id, value as GuildRole)}
+                        disabled={!canManageRoles || disableRoleChange(assignment)}
+                      >
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="uppercase">
+                        {assignment.source ?? "manual"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                      {formatRelativeTime(assignment.assigned_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {canManageRoles ? (
+                        <Button
+                          type="button"
+                          aria-label="Revoke access"
+                          variant="ghost"
+                          size="icon"
+                          disabled={disableRoleChange(assignment)}
+                          onClick={() => onRevokeAccess(assignment.user_id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No actions</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {!isLoading && assignments.length > 0 && filteredAssignments.length === 0 && (
+          <p className="text-sm text-muted-foreground">No assignments match your filters.</p>
+        )}
+
+        {!isLoading && filteredAssignments.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <p>
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </SectionCard>

@@ -22,7 +22,58 @@ export type AuditAction =
   | "LOOT_CREATED"
   | "LOOT_UPDATED"
   | "LOOT_DELETED"
-  | "LOOT_DISTRIBUTED";
+  | "LOOT_DISTRIBUTED"
+  | "PAYROLL_BATCH_CREATED";
+
+export type PayrollSource = "TRANSACTION" | "LOOT";
+export type PayrollMode = "EQUAL" | "PERCENTAGE" | "FIXED";
+
+export interface PayrollSummary {
+  source: PayrollSource;
+  availableBalance: number;
+  asOf: string;
+}
+
+export interface PayrollMemberShare {
+  memberId: string;
+  amount?: number;
+  percentage?: number;
+}
+
+export interface PayrollBatchListItem {
+  id: string;
+  referenceCode?: string | null;
+  source: PayrollSource;
+  mode: PayrollMode;
+  totalAmount: number;
+  membersCount: number;
+  distributedByName: string;
+  createdAt: string;
+  periodFrom?: string | null;
+  periodTo?: string | null;
+}
+
+export interface PayrollBatchDetail {
+  id: string;
+  referenceCode?: string | null;
+  source: PayrollSource;
+  mode: PayrollMode;
+  totalAmount: number;
+  notes?: string | null;
+  distributedByName: string;
+  distributedByUserId: string;
+  createdAt: string;
+  periodFrom?: string | null;
+  periodTo?: string | null;
+  balanceBefore: number;
+  balanceAfter: number;
+  items: Array<{
+    memberId: string;
+    memberName?: string | null;
+    amount: number;
+    percentage?: number | null;
+  }>;
+}
 
 export interface AuthUser {
   id: string;

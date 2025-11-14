@@ -34,3 +34,13 @@ export function formatDateTime(value: string | Date): string {
     minute: "2-digit",
   });
 }
+
+export function formatLabel(value?: string | null): string {
+  if (!value) return "";
+  return value
+    .replace(/[_-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}

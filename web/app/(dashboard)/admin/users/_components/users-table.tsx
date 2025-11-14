@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import type { AdminGuildSummary, AdminUserSummary, UserRole } from "@/lib/types";
+import { formatLabel } from "@/lib/format";
 import { PlusCircle, Trash2 } from "lucide-react";
 
 interface UsersTableProps {
@@ -124,8 +125,8 @@ export function UsersTable({
                         className="flex items-center gap-2 rounded-full border border-border/70 bg-muted/40 px-3 py-1 text-xs"
                       >
                         <span className="font-semibold">{assignment.guild_tag}</span>
-                        <Badge variant="secondary" className="capitalize">
-                          {assignment.role.replace(/_/g, " ")}
+                        <Badge variant="secondary">
+                          {formatLabel(assignment.role)}
                         </Badge>
                         <button
                           type="button"

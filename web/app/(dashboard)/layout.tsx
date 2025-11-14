@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, usePathname } from "next/navigation";
@@ -10,8 +10,11 @@ import { DashboardNav, DashboardMobileNav } from "@/components/navigation/dashbo
 import { UserMenu } from "@/components/navigation/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DashboardGuildProvider } from "@/components/dashboard/dashboard-guild-context";
+import { CommunitySidebar } from "@/components/community/community-sidebar";
 
 const STORAGE_KEY = "guild-manager:selected-guild";
+const SIDEBAR_WIDTH = 320;
+const SIDEBAR_GUTTER = 32;
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
@@ -19,15 +22,17 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
+  const mainShellRef = useRef<HTMLDivElement | null>(null);
+  const [sidebarLeft, setSidebarLeft] = useState<number>(SIDEBAR_GUTTER);
 
-  // Ambil guild id dari URL: /guilds/<gid>/...
+  // Extract guild id from the current path: /guilds/<gid>/...
   const guildFromPath = useMemo(() => {
     const match = pathname?.match(/\/guilds\/([^/]+)/);
     if (match && match[1] !== "select") return match[1];
     return null;
   }, [pathname]);
 
-  // Jika URL mengandung guild, pakai itu dan persist.
+  // When the URL already has a guild segment, honor it and persist locally.
   useEffect(() => {
     if (!guildFromPath || guildFromPath === selectedGuild) return;
     setSelectedGuild(guildFromPath);
@@ -36,7 +41,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     } catch { }
   }, [guildFromPath, selectedGuild]);
 
-  // Saat pertama kali (tanpa guild di URL), restore dari localStorage.
+  // On first load without a guild in the URL, restore from localStorage.
   useEffect(() => {
     if (guildFromPath || selectedGuild) return;
     try {
@@ -53,7 +58,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       } catch { }
 
       if (pathname?.startsWith("/guilds/")) {
-        // Ganti hanya segmen guild-nya; sisanya tetap.
+        // Swap only the guild segment and keep the rest of the path intact.
         const remainder = pathname.replace(/\/guilds\/[^/]+/, "");
         router.push(`/guilds/${guildId}${remainder}`);
       } else if (pathname !== "/dashboard") {
@@ -63,10 +68,22 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     [pathname, router],
   );
 
-  // Redirect bila belum login
+  // Redirect when the user is not authenticated.
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
+
+  useEffect(() => {
+    const updateSidebarPosition = () => {
+      if (!mainShellRef.current) return;
+      const rect = mainShellRef.current.getBoundingClientRect();
+      setSidebarLeft(rect.left);
+    };
+
+    updateSidebarPosition();
+    window.addEventListener("resize", updateSidebarPosition);
+    return () => window.removeEventListener("resize", updateSidebarPosition);
+  }, []);
 
   if (status === "loading") {
     return (
@@ -82,52 +99,71 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <DashboardGuildProvider value={{ selectedGuild, changeGuild: handleGuildChange }}>
       <div className="flex min-h-screen flex-col bg-background">
         {/* HEADER */}
-        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur">
-          <div className="container flex flex-col gap-3 py-4">
-            <div className="flex items-center gap-2">
-              <DashboardMobileNav
-                guildId={selectedGuild}
-                isSuperAdmin={isSuperAdmin}
-                triggerClassName="bg-muted/30"
-              />
+        <header className="fixed inset-x-0 top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur">
+          <div className="container flex flex-col gap-4 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <DashboardMobileNav
+                  guildId={selectedGuild}
+                  isSuperAdmin={isSuperAdmin}
+                  triggerClassName="bg-muted/30"
+                  mobileExtras={
+                    <UserMenu appearance="sidebar" showDetails className="w-full" />
+                  }
+                />
 
-              <Link
-                href="/dashboard"
-                className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
-              >
-                Guild Manager
-              </Link>
+                <Link
+                  href="/dashboard"
+                  className="text-base font-semibold tracking-tight text-foreground sm:text-lg"
+                >
+                  Guild Manager
+                </Link>
+              </div>
 
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 sm:flex-none">
+                <GuildSwitcher
+                  value={selectedGuild}
+                  onChange={handleGuildChange}
+                  className="min-w-[200px] sm:w-72 lg:w-80"
+                />
                 <ThemeToggle
                   variant="outline"
                   size="icon"
                   className="rounded-full border-border/60 text-foreground"
                 />
-                <UserMenu showDetails={false} buttonProps={{ className: "rounded-full border-border/60" }} />
               </div>
-            </div>
-
-            <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center">
-              <GuildSwitcher
-                value={selectedGuild}
-                onChange={handleGuildChange}
-                className="min-w-[200px] lg:w-60"
-              />
-              <div className="flex w-full justify-center">
-                <DashboardNav
-                  guildId={selectedGuild}
-                  isSuperAdmin={isSuperAdmin}
-                  className="max-w-5xl w-full justify-center"
-                />
-              </div>
-              <div className="hidden lg:block lg:w-60" />
             </div>
           </div>
         </header>
 
         {/* MAIN */}
-        <main className="container flex-1 px-4 py-8 sm:px-6">{children}</main>
+        <main className="flex-1 px-4 pb-8 pt-32 sm:px-6 lg:pt-36">
+          <div ref={mainShellRef} className="container flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
+            <aside className="hidden lg:block lg:w-72 lg:flex-shrink-0">
+              <div
+                style={{
+                  position: "fixed",
+                  top: "7rem",
+                  left: Math.max(SIDEBAR_GUTTER, sidebarLeft),
+                  width: `${SIDEBAR_WIDTH}px`,
+                  maxHeight: "calc(100vh - 8rem)",
+                  overflowY: "auto",
+                  paddingRight: "0.75rem",
+                }}
+              >
+                <div className="space-y-6">
+                  <DashboardNav
+                    guildId={selectedGuild}
+                    isSuperAdmin={isSuperAdmin}
+                    showProfile
+                  />
+                  <CommunitySidebar />
+                </div>
+              </div>
+            </aside>
+            <div className="flex-1 lg:min-h-[calc(100vh-10rem)]">{children}</div>
+          </div>
+        </main>
       </div>
     </DashboardGuildProvider>
   );

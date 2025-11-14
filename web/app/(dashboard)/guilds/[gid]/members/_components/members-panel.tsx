@@ -17,12 +17,15 @@ interface MembersPanelProps {
   canManageMembers: boolean;
 }
 
+const PAGE_SIZE = 5;
+
 export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showInactive, setShowInactive] = useState(false);
+  const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
 
@@ -31,12 +34,18 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
     return () => clearTimeout(id);
   }, [searchInput]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, showInactive]);
+
   const membersQuery = useQuery({
-    queryKey: guildId ? membersQueryKey(guildId, search, showInactive) : [],
+    queryKey: guildId ? membersQueryKey(guildId, search, showInactive, page) : [],
     queryFn: async (): Promise<MemberListResponse> =>
       listMembers(guildId!, {
         search: search || undefined,
         active: showInactive ? undefined : true,
+        page,
+        pageSize: PAGE_SIZE,
       }),
     enabled: Boolean(guildId),
     staleTime: 5 * 1000,
@@ -110,6 +119,13 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
 
   const members = membersQuery.data?.members ?? [];
   const total = membersQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [totalPages]);
+
+  const filtersActive = Boolean(search.trim()) || showInactive;
   const defaultValues = useMemo<MemberSchema | undefined>(() => {
     if (!selectedMember) return undefined;
     const contact = (selectedMember.contact ?? {}) as Record<string, unknown>;
@@ -125,7 +141,7 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
 
   const isLoading = membersQuery.isLoading;
   const isSaving = createMutation.isPending || updateMutation.isPending;
-  const emptyState = !isLoading && members.length === 0;
+  const emptyState = !isLoading && members.length === 0 && !filtersActive;
 
   return (
     <>
@@ -134,11 +150,15 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
         total={total}
         isLoading={isLoading}
         emptyState={emptyState}
+        filtersActive={filtersActive}
         canManageMembers={canManageMembers}
         searchValue={searchInput}
         onSearchChange={setSearchInput}
         showInactive={showInactive}
         onToggleInactive={setShowInactive}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
         onAddMember={() => {
           setSelectedMember(null);
           setDialogOpen(true);
