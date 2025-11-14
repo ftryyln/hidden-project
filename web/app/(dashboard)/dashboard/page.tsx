@@ -110,7 +110,7 @@ export default function DashboardPage() {
         <RecentActivityCard logs={data?.audit} loading={dashboardQuery.isLoading} />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-6">
         <TableCard
           title="Latest Transactions"
           description="Draft and newly confirmed transactions"
@@ -119,9 +119,10 @@ export default function DashboardPage() {
             data?.recentTransactions?.map((tx) => ({
               key: tx.id,
               cells: [
-                formatDateTime(tx.created_at),
-                <div className="flex items-center gap-2" key="category">
+                <span className="whitespace-nowrap">{formatDateTime(tx.created_at)}</span>,
+                <div className="flex flex-col gap-1" key="category">
                   <Badge
+                    className="w-fit"
                     variant={
                       tx.tx_type === "income"
                         ? "success"
@@ -132,7 +133,9 @@ export default function DashboardPage() {
                   >
                     {tx.tx_type}
                   </Badge>
-                  <span key="category-label">{tx.category}</span>
+                  <span className="text-sm font-medium leading-tight whitespace-nowrap" key="category-label">
+                    {tx.category}
+                  </span>
                 </div>,
                 <WemixAmount key="amount" value={tx.amount} />,
                 <Badge key="status" variant={tx.confirmed ? "success" : "warning"}>
@@ -154,7 +157,7 @@ export default function DashboardPage() {
             data?.recentLoot?.map((loot) => ({
               key: loot.id,
               cells: [
-                formatDateTime(loot.created_at),
+                <span className="whitespace-nowrap">{formatDateTime(loot.created_at)}</span>,
                 <div className="flex flex-col" key="item">
                   <span className="font-medium">{loot.item_name}</span>
                   <span className="text-xs text-muted-foreground">{loot.boss_name}</span>

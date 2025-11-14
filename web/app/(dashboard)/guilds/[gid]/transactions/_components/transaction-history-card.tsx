@@ -34,15 +34,29 @@ const ACTION_FILTERS: Array<{ value: "all" | AuditLog["action"]; label: string }
 
 function describeTransactionLog(log: AuditLog): string {
   const actor = log.actor_name ?? "Someone";
+
+  switch (log.action) {
+    case "TRANSACTION_CREATED":
+      return `${actor} created a transaction.`;
+    case "TRANSACTION_UPDATED":
+      return `${actor} updated a transaction.`;
+    case "TRANSACTION_DELETED":
+      return `${actor} deleted a transaction.`;
+    case "TRANSACTION_CONFIRMED":
+      return `${actor} confirmed a transaction.`;
+    default:
+      return `${actor} recorded activity.`;
+  }
+}
+
+function getTransactionLogDetails(log: AuditLog): string | undefined {
   const metadata = log.metadata ?? {};
   const category =
     typeof metadata.category === "string" && metadata.category.length > 0
       ? metadata.category
       : undefined;
   const txType =
-    typeof metadata.tx_type === "string" && metadata.tx_type.length > 0
-      ? metadata.tx_type
-      : undefined;
+    typeof metadata.tx_type === "string" && metadata.tx_type.length > 0 ? metadata.tx_type : undefined;
   const amountValue =
     typeof metadata.amount === "number"
       ? metadata.amount
@@ -54,21 +68,95 @@ function describeTransactionLog(log: AuditLog): string {
       ? formatCurrency(amountValue)
       : undefined;
 
-  const baseDetails = [txType, category].filter(Boolean).join(" / ");
-  const detailText = [amount, baseDetails].filter(Boolean).join(" - ");
+  const transactionId =
+    typeof metadata.transaction_id === "string" && metadata.transaction_id.length > 0
+      ? metadata.transaction_id
+      : undefined;
 
-  switch (log.action) {
-    case "TRANSACTION_CREATED":
-      return `${actor} created a transaction${detailText ? ` (${detailText})` : ""}.`;
-    case "TRANSACTION_UPDATED":
-      return `${actor} updated a transaction${detailText ? ` (${detailText})` : ""}.`;
-    case "TRANSACTION_DELETED":
-      return `${actor} deleted a transaction${detailText ? ` (${detailText})` : ""}.`;
-    case "TRANSACTION_CONFIRMED":
-      return `${actor} confirmed a transaction${detailText ? ` (${detailText})` : ""}.`;
-    default:
-      return `${actor} recorded activity.`;
+  const typeDetails = [txType, category].filter(Boolean).join(" / ");
+  const changeDetails = describeChangeDetails(metadata.changes);
+
+  const sections = [amount, typeDetails, changeDetails].filter(
+    (value): value is string => Boolean(value),
+  );
+
+  if (sections.length > 0) {
+    return sections.join(" • ");
   }
+
+  if (transactionId) {
+    return "Legacy confirmation recorded before transaction details were captured.";
+  }
+
+  return undefined;
+}
+
+type ChangeDetails = Record<string, { previous?: unknown; next?: unknown }>;
+
+const CHANGE_LABELS: Record<string, string> = {
+  tx_type: "Type",
+  category: "Category",
+  amount: "Amount",
+  description: "Description",
+  evidence_path: "Evidence",
+};
+
+function describeChangeDetails(rawChanges: unknown): string | undefined {
+  if (!rawChanges || typeof rawChanges !== "object") {
+    return undefined;
+  }
+
+  const changes = rawChanges as ChangeDetails;
+
+  const parts = Object.entries(changes)
+    .map(([field, value]) => {
+      if (!value || typeof value !== "object") {
+        return undefined;
+      }
+
+      const prev = "previous" in value ? value.previous : undefined;
+      const next = "next" in value ? value.next : undefined;
+
+      if (prev === next) {
+        return undefined;
+      }
+
+      const label =
+        CHANGE_LABELS[field] ??
+        field
+          .split("_")
+          .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+          .join(" ");
+
+      return `${label}: ${formatChangeValue(field, prev)} -> ${formatChangeValue(field, next)}`;
+    })
+    .filter((part): part is string => Boolean(part));
+
+  return parts.length ? parts.join("; ") : undefined;
+}
+
+function formatChangeValue(field: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") {
+    return "empty";
+  }
+
+  if (field === "amount") {
+    const numeric =
+      typeof value === "number"
+        ? value
+        : typeof value === "string"
+          ? Number(value)
+          : null;
+    if (typeof numeric === "number" && Number.isFinite(numeric)) {
+      return formatCurrency(numeric);
+    }
+  }
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
 }
 
 export function TransactionHistoryCard({ logs, isLoading }: TransactionHistoryCardProps) {
@@ -150,22 +238,28 @@ export function TransactionHistoryCard({ logs, isLoading }: TransactionHistoryCa
         )}
         {pageLogs.length > 0 && (
           <div className="space-y-3">
-            {pageLogs.map((log) => (
-              <div
-                key={log.id}
-                className="flex items-start justify-between rounded-3xl border border-border/60 p-4"
-              >
-                <div className="space-y-1 pr-4">
-                  <p className="text-sm font-medium">{describeTransactionLog(log)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDateTime(log.created_at)} · {log.actor_name ?? "System"}
-                  </p>
+            {pageLogs.map((log) => {
+              const detailText = getTransactionLogDetails(log);
+              return (
+                <div
+                  key={log.id}
+                  className="flex items-start justify-between rounded-3xl border border-border/60 p-4"
+                >
+                  <div className="space-y-1 pr-4">
+                    <p className="text-sm font-medium">{describeTransactionLog(log)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {detailText ?? "No additional details recorded."}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDateTime(log.created_at)} | {log.actor_name ?? "System"}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="whitespace-nowrap">
+                    {log.action.replace("TRANSACTION_", "").replace("_", " ")}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="whitespace-nowrap">
-                  {log.action.replace("TRANSACTION_", "").replace("_", " ")}
-                </Badge>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {pageLogs.length > 0 && (
@@ -197,3 +291,4 @@ export function TransactionHistoryCard({ logs, isLoading }: TransactionHistoryCa
     </Card>
   );
 }
+

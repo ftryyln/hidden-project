@@ -7,7 +7,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { MemberForm, type MemberSchema } from "@/components/forms/member-form";
 import { MembersSection } from "../sections";
 import { membersQueryKey } from "../constants";
-import { listMembers, createMember, updateMember, toggleMemberStatus, type MemberListResponse } from "@/lib/api/members";
+import {
+  listMembers,
+  createMember,
+  updateMember,
+  toggleMemberStatus,
+  deleteMember,
+  type MemberListResponse,
+} from "@/lib/api/members";
 import { useToast } from "@/components/ui/use-toast";
 import type { Member } from "@/lib/types";
 import { toApiError } from "@/lib/api/errors";
@@ -117,6 +124,18 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (member: Member) => deleteMember(guildId!, member.id),
+    onSuccess: async () => {
+      await invalidateMembers();
+      toast({ title: "Member removed" });
+    },
+    onError: async (error) => {
+      const apiError = await toApiError(error);
+      toast({ title: "Failed to remove member", description: apiError.message });
+    },
+  });
+
   const members = membersQuery.data?.members ?? [];
   const total = membersQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -168,7 +187,14 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
           setDialogOpen(true);
         }}
         onToggleMemberStatus={(member, nextState) => toggleMutation.mutate({ member, nextState })}
-        isMutating={toggleMutation.isPending}
+        onDeleteMember={(member) => {
+          const confirmed = window.confirm(
+            `Remove ${member.in_game_name} from this guild? Existing user accounts remain intact.`,
+          );
+          if (!confirmed) return;
+          deleteMutation.mutate(member);
+        }}
+        isMutating={toggleMutation.isPending || deleteMutation.isPending}
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

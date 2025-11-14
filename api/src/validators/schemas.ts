@@ -66,6 +66,11 @@ export const lootDistributionSchema = z.object({
     .min(1),
 });
 
+export const lootListQuerySchema = paginationSchema.extend({
+  search: z.string().max(160).optional(),
+  status: z.enum(["distributed", "pending"]).optional(),
+});
+
 export const reportsQuerySchema = z.object({
   from: z.string().optional(),
   to: z.string().optional(),
@@ -106,4 +111,30 @@ export const payrollListQuerySchema = paginationSchema.extend({
   memberId: z.string().uuid().optional(),
   fromDate: z.string().optional(),
   toDate: z.string().optional(),
+});
+
+const attendanceMemberSchema = z.object({
+  memberId: z.string().uuid(),
+  note: z.string().max(500).optional().nullable(),
+  lootTag: z.string().max(120).optional().nullable(),
+});
+
+export const attendanceSessionSchema = z
+  .object({
+    bossName: z.string().max(120).optional().nullable(),
+    mapName: z.string().max(120).optional().nullable(),
+    startedAt: z.string().min(1),
+    attendees: z.array(attendanceMemberSchema).min(1),
+  })
+  .refine((value) => value.bossName || value.mapName, {
+    message: "Boss or map is required",
+    path: ["bossName"],
+  });
+
+export const attendanceListQuerySchema = paginationSchema.extend({
+  search: z.string().optional(),
+  bossName: z.string().optional(),
+  mapName: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
 });

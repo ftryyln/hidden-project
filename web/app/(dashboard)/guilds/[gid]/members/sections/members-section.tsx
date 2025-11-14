@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Power, UserPlus } from "lucide-react";
+import { Pencil, Power, Trash2, UserPlus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ interface MembersSectionProps {
   onAddMember: () => void;
   onEditMember: (member: Member) => void;
   onToggleMemberStatus: (member: Member, nextState: boolean) => void;
+  onDeleteMember: (member: Member) => void;
   isMutating?: boolean;
   page?: number;
   totalPages?: number;
@@ -46,6 +47,7 @@ export function MembersSection({
   onAddMember,
   onEditMember,
   onToggleMemberStatus,
+  onDeleteMember,
   isMutating = false,
   page = 1,
   totalPages = 1,
@@ -186,6 +188,17 @@ export function MembersSection({
                               disabled={isMutating}
                             >
                               <Power className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              aria-label={`Remove ${member.in_game_name}`}
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-full text-destructive hover:text-destructive"
+                              onClick={() => onDeleteMember(member)}
+                              disabled={isMutating}
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         ) : (

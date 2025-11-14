@@ -23,6 +23,7 @@ import {
   UserCog,
   Menu,
   Wallet,
+  CalendarCheck,
 } from "lucide-react";
 import { UserMenu } from "@/components/navigation/user-menu";
 
@@ -43,13 +44,14 @@ const baseLinks = [
   { href: "/guilds/[gid]/members", label: "Members", icon: Users },
   { href: "/guilds/[gid]/transactions", label: "Transactions", icon: Receipt },
   { href: "/guilds/[gid]/loot", label: "Loot", icon: Gem },
+  { href: "/guilds/[gid]/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/guilds/[gid]/salary", label: "Payroll", icon: Wallet },
   { href: "/guilds/[gid]/reports", label: "Reports", icon: BarChart3 },
 ];
 
 const adminLinks = [
-  { href: "/admin", label: "Guilds", icon: ShieldCheck },
-  { href: "/admin/users", label: "Users", icon: UserCog },
+  { href: "/admin", label: "Guild Management", icon: ShieldCheck },
+  { href: "/admin/users", label: "User Management", icon: UserCog },
 ];
 
 type ComputedLink = {

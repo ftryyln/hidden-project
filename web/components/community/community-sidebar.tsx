@@ -89,7 +89,9 @@ export function CommunitySidebar() {
               <div className="relative h-40 w-full bg-gradient-to-br from-primary/30 via-primary/10 to-transparent">
                 <div className="absolute inset-0 flex flex-col justify-between p-4">
                   <div className="space-y-1">
-                    <p className="text-xs uppercase tracking-wide text-primary">See what's new</p>
+                    <p className="text-xs uppercase tracking-wide text-primary">
+                      See what&apos;s new
+                    </p>
                     <p className="text-lg font-semibold leading-tight text-foreground line-clamp-2">
                       {latestVideoConfig.title}
                     </p>

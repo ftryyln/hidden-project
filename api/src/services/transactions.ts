@@ -296,5 +296,19 @@ export async function confirmTransaction(
     throw new ApiError(500, "Unable to confirm transaction");
   }
 
+  await recordAuditLog(supabaseAdmin, {
+    guildId,
+    actorUserId: userId,
+    action: "TRANSACTION_CONFIRMED",
+    metadata: {
+      transaction_id: data.id,
+      tx_type: data.tx_type,
+      category: data.category,
+      amount: Number(data.amount ?? 0),
+      description: data.description ?? null,
+      confirmed_at: confirmedAt,
+    },
+  });
+
   return mapTransaction(data);
 }

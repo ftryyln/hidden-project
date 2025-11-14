@@ -151,3 +151,15 @@ export async function toggleMemberActive(
 
   return mapMember(data);
 }
+
+export async function deleteMember(guildId: string, memberId: string): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from("members")
+    .delete()
+    .eq("guild_id", guildId)
+    .eq("id", memberId);
+  if (error) {
+    console.error("Failed to delete member", error);
+    throw new ApiError(500, "Unable to delete member");
+  }
+}

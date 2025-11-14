@@ -144,7 +144,7 @@ export function TransactionListCard({
                   <TableRow key={tx.id}>
                     <TableCell className="whitespace-nowrap">{formatDateTime(tx.created_at)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-3 whitespace-nowrap">
+                      <div className="flex flex-col gap-1">
                         <Badge
                           variant={
                             tx.tx_type === "income"
@@ -157,7 +157,9 @@ export function TransactionListCard({
                         >
                           {tx.tx_type}
                         </Badge>
-                        <span className="text-sm font-medium">{tx.category}</span>
+                        <span className="text-sm font-medium leading-tight whitespace-nowrap">
+                          {tx.category}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>

@@ -11,6 +11,7 @@ interface RecentActivityCardProps {
 }
 
 export function RecentActivityCard({ logs, loading }: RecentActivityCardProps) {
+  const limitedLogs = logs?.slice(0, 3) ?? [];
   return (
     <Card>
       <CardHeader>
@@ -24,13 +25,13 @@ export function RecentActivityCard({ logs, loading }: RecentActivityCardProps) {
             <Skeleton className="h-16 rounded-2xl" />
           </div>
         )}
-        {!loading && (logs?.length ?? 0) === 0 && (
+        {!loading && limitedLogs.length === 0 && (
           <p className="text-sm text-muted-foreground">
             No recent activity yet. Log transactions or distribute loot to see updates here.
           </p>
         )}
         {!loading &&
-          logs?.map((log) => (
+          limitedLogs.map((log) => (
             <div key={log.id} className="rounded-2xl border border-border/40 bg-background/60 p-3">
               <p className="text-sm font-semibold text-foreground">{log.action}</p>
               <p className="text-xs text-muted-foreground">

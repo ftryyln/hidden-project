@@ -9,6 +9,7 @@ import { reportsRouter } from "./reports.js";
 import { guildAccessRouter } from "./guild-user-roles.js";
 import { adminRouter } from "./admin.js";
 import { payrollRouter } from "./payroll.js";
+import { attendanceRouter } from "./attendance.js";
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use(reportsRouter);
 router.use(guildAccessRouter);
 router.use(adminRouter);
 router.use(payrollRouter);
+router.use(attendanceRouter);
 
 export { router };

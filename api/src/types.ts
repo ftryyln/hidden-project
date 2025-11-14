@@ -159,3 +159,45 @@ export interface ReportsResponse {
   };
   series: MonthlySummaryPoint[];
 }
+
+export type AttendanceAction =
+  | "CREATED"
+  | "UPDATED"
+  | "DELETED"
+  | "MEMBER_ADDED"
+  | "MEMBER_REMOVED";
+
+export interface AttendanceSessionRecord {
+  id: string;
+  guild_id: string;
+  boss_name?: string | null;
+  map_name?: string | null;
+  started_at: string;
+  created_by: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AttendanceEntryRecord {
+  id: string;
+  session_id: string;
+  member_id: string;
+  note?: string | null;
+  loot_tag?: string | null;
+  created_by: string;
+  updated_by: string;
+  created_at: string;
+  updated_at: string;
+  member_name?: string;
+}
+
+export interface AttendanceActivityRecord {
+  id: string;
+  session_id: string;
+  action: AttendanceAction;
+  details?: Record<string, unknown> | null;
+  performed_by: string;
+  performed_at: string;
+  performer_name?: string | null;
+}

@@ -3,10 +3,18 @@ import { supabaseAdmin } from "../supabase.js";
 import type { LootDistribution, LootRecord } from "../types.js";
 import { recordAuditLog } from "./audit.js";
 import { requireGuildRole } from "./access.js";
+import { getRange } from "../utils/pagination.js";
 
 export interface LootListResponse {
   loot: LootRecord[];
   total: number;
+}
+
+export interface LootListFilters {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: "distributed" | "pending";
 }
 
 function mapLoot(row: Record<string, unknown>): LootRecord {
@@ -24,15 +32,32 @@ function mapLoot(row: Record<string, unknown>): LootRecord {
   };
 }
 
-export async function listLoot(guildId: string): Promise<LootListResponse> {
-  const { data, error, count } = await supabaseAdmin
+export async function listLoot(guildId: string, filters: LootListFilters = {}): Promise<LootListResponse> {
+  const { from, to } = getRange(filters.page ?? 1, filters.pageSize ?? 25);
+  const searchTerm = filters.search?.trim();
+
+  let query = supabaseAdmin
     .from("loot_records")
     .select(
       "id, guild_id, created_at, boss_name, item_name, item_rarity, estimated_value, distributed, distributed_at, notes",
       { count: "exact" },
     )
     .eq("guild_id", guildId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (filters.status === "distributed") {
+    query = query.eq("distributed", true);
+  } else if (filters.status === "pending") {
+    query = query.eq("distributed", false);
+  }
+
+  if (searchTerm) {
+    const pattern = `%${searchTerm.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`;
+    query = query.or(`item_name.ilike.${pattern},boss_name.ilike.${pattern}`);
+  }
+
+  const { data, error, count } = await query;
 
   if (error) {
     console.error("Failed to load loot", error);

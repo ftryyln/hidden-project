@@ -263,3 +263,48 @@ export interface LoginResponse {
   token_type: string;
   user: AuthUser;
 }
+
+export type AttendanceAction =
+  | "CREATED"
+  | "UPDATED"
+  | "DELETED"
+  | "MEMBER_ADDED"
+  | "MEMBER_REMOVED";
+
+export interface AttendanceSessionSummary {
+  id: string;
+  bossName?: string | null;
+  mapName?: string | null;
+  startedAt: string;
+  attendeesCount: number;
+  createdBy: string;
+  createdByName?: string | null;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface AttendanceEntry {
+  id: string;
+  sessionId: string;
+  memberId: string;
+  memberName?: string | null;
+  note?: string | null;
+  lootTag?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttendanceDetail {
+  session: AttendanceSessionSummary;
+  entries: AttendanceEntry[];
+}
+
+export interface AttendanceHistoryItem {
+  id: string;
+  sessionId: string;
+  action: AttendanceAction;
+  details?: Record<string, unknown> | null;
+  performedBy: string;
+  performerName?: string | null;
+  performedAt: string;
+}

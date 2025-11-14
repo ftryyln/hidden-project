@@ -63,3 +63,7 @@ export async function toggleMemberStatus(
   );
   return data;
 }
+
+export async function deleteMember(guildId: string, memberId: string): Promise<void> {
+  await api.delete(`/guilds/${guildId}/members/${memberId}`);
+}

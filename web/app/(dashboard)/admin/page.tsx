@@ -227,7 +227,7 @@ export default function AdminGuildsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Super Admin Control</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Guild Management</h2>
           <p className="text-sm text-muted-foreground">
             Manage global guild records and ensure each guild has at least one admin.
           </p>

@@ -4,7 +4,7 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { ensureUuid } from "../utils/validation.js";
 import { requireGuildRole } from "../services/access.js";
 import { supabaseAdmin } from "../supabase.js";
-import { lootCreateSchema, lootDistributionSchema } from "../validators/schemas.js";
+import { lootCreateSchema, lootDistributionSchema, lootListQuerySchema } from "../validators/schemas.js";
 import { createLoot, deleteLoot, distributeLoot, listLoot, updateLoot } from "../services/loot.js";
 import { ApiError, fromZodError } from "../errors.js";
 
@@ -23,7 +23,12 @@ router.get(
       "viewer",
     ]);
 
-    const loot = await listLoot(guildId);
+    const parsed = lootListQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw fromZodError(parsed.error);
+    }
+
+    const loot = await listLoot(guildId, parsed.data);
     res.json(loot);
   }),
 );

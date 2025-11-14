@@ -59,7 +59,7 @@ export default function GuildSalaryPage() {
 
   const membersQuery = useQuery({
     queryKey: ["guild", guildId, "payroll", "members"],
-    queryFn: () => listMembers(guildId!, { pageSize: 200, active: true }),
+    queryFn: () => listMembers(guildId!, { pageSize: 100, active: true }),
     enabled: Boolean(guildId && canDistribute),
   });
 

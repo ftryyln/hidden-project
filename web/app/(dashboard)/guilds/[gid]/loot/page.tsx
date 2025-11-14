@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/ui/use-toast";
 import type { LootRecord, LootDistribution, Member } from "@/lib/types";
 import { listLoot, createLoot, distributeLoot, updateLoot, deleteLoot } from "@/lib/api/loot";
@@ -14,13 +14,22 @@ import { useDashboardGuild } from "@/components/dashboard/dashboard-guild-contex
 import { fetchGuildAuditLogs } from "@/lib/api/guild-access";
 import { LootHeader } from "./_components/loot-header";
 import { LootEditDialog } from "./_components/loot-edit-dialog";
-import { LootListCard } from "./_components/loot-list-card";
+import { LootListCard, type LootStatusFilter } from "./_components/loot-list-card";
 import { LootHistoryCard } from "./_components/loot-history-card";
 import { LootDistributionDialog } from "./_components/loot-distribution-dialog";
 import type { LootSchema } from "@/components/forms/loot-form";
 
-const lootQueryKey = (guildId: string) => ["guild", guildId, "loot"] as const;
+type LootQueryFilters = {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: "distributed" | "pending";
+};
+
+const lootQueryKey = (guildId: string, filters: LootQueryFilters) =>
+  ["guild", guildId, "loot", filters] as const;
 const lootMembersQueryKey = (guildId: string) => ["guild", guildId, "members", { for: "loot" }] as const;
+const LOOT_PAGE_SIZE = 10;
 
 export default function LootPage() {
   const params = useParams<{ gid: string }>();
@@ -44,6 +53,19 @@ export default function LootPage() {
   const [selectedLoot, setSelectedLoot] = useState<LootRecord | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [lootToEdit, setLootToEdit] = useState<LootRecord | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LootStatusFilter>("all");
+  const [page, setPage] = useState(1);
+
+  const normalizedFilters = useMemo<LootQueryFilters>(() => {
+    const trimmedSearch = search.trim();
+    return {
+      page,
+      pageSize: LOOT_PAGE_SIZE,
+      ...(trimmedSearch ? { search: trimmedSearch } : {}),
+      ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+    };
+  }, [page, search, statusFilter]);
 
   useEffect(() => {
     if (!permissions.canManageLoot) {
@@ -55,10 +77,15 @@ export default function LootPage() {
     }
   }, [permissions.canManageLoot]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
   const lootQuery = useQuery({
-    queryKey: guildId ? lootQueryKey(guildId) : [],
-    queryFn: () => listLoot(guildId!),
+    queryKey: guildId ? lootQueryKey(guildId, normalizedFilters) : [],
+    queryFn: () => listLoot(guildId!, normalizedFilters),
     enabled: Boolean(guildId),
+    placeholderData: keepPreviousData,
   });
 
   const membersQuery = useQuery({
@@ -92,7 +119,7 @@ export default function LootPage() {
       }),
     onSuccess: async () => {
       if (!guildId) return;
-      await queryClient.invalidateQueries({ queryKey: lootQueryKey(guildId) });
+      await queryClient.invalidateQueries({ queryKey: ["guild", guildId, "loot"] });
       setCreateOpen(false);
       toast({
         title: "Loot recorded",
@@ -124,7 +151,7 @@ export default function LootPage() {
     onSuccess: async () => {
       if (!guildId) return;
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: lootQueryKey(guildId) }),
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "loot"] }),
         queryClient.invalidateQueries({ queryKey: ["guild", guildId, "loot", "history"] }),
       ]);
       setEditOpen(false);
@@ -148,7 +175,7 @@ export default function LootPage() {
     onSuccess: async () => {
       if (!guildId) return;
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: lootQueryKey(guildId) }),
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "loot"] }),
         queryClient.invalidateQueries({ queryKey: ["guild", guildId, "loot", "history"] }),
       ]);
       toast({
@@ -178,7 +205,7 @@ export default function LootPage() {
     onSuccess: async () => {
       if (!guildId) return;
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: lootQueryKey(guildId) }),
+        queryClient.invalidateQueries({ queryKey: ["guild", guildId, "loot"] }),
         queryClient.invalidateQueries({ queryKey: ["guild", guildId, "transactions"] }),
       ]);
       setDistributeOpen(false);
@@ -214,6 +241,15 @@ export default function LootPage() {
   };
 
   const lootItems = lootQuery.data?.loot ?? [];
+  const totalItems = lootQuery.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / LOOT_PAGE_SIZE));
+
+  useEffect(() => {
+    if (!lootQuery.data) {
+      return;
+    }
+    setPage((prev) => Math.min(prev, totalPages));
+  }, [lootQuery.data, totalPages]);
   const lootHistory = historyQuery.data ?? [];
   const isLoading = lootQuery.isLoading;
   const activeMembers: Member[] = membersQuery.data?.members ?? [];
@@ -257,6 +293,14 @@ export default function LootPage() {
         }}
         deletePending={deleteMutation.isPending}
         distributePending={distributeMutation.isPending}
+        searchValue={search}
+        onSearchChange={setSearch}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        page={page}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        onPageChange={setPage}
       />
 
       <LootHistoryCard logs={lootHistory} loading={historyQuery.isLoading} />

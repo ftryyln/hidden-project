@@ -23,7 +23,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
   const mainShellRef = useRef<HTMLDivElement | null>(null);
-  const [sidebarLeft, setSidebarLeft] = useState<number>(SIDEBAR_GUTTER);
+  const [sidebarLeft, setSidebarLeft] = useState<number | null>(null);
 
   // Extract guild id from the current path: /guilds/<gid>/...
   const guildFromPath = useMemo(() => {
@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 style={{
                   position: "fixed",
                   top: "7rem",
-                  left: Math.max(SIDEBAR_GUTTER, sidebarLeft),
+                  left: Math.max(SIDEBAR_GUTTER, sidebarLeft ?? SIDEBAR_GUTTER),
                   width: `${SIDEBAR_WIDTH}px`,
                   maxHeight: "calc(100vh - 8rem)",
                   overflowY: "auto",

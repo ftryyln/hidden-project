@@ -5,6 +5,7 @@ import { ensureUuid } from "../utils/validation.js";
 import { memberListQuerySchema, memberUpsertSchema } from "../validators/schemas.js";
 import {
   createMember,
+  deleteMember,
   listMembers,
   toggleMemberActive,
   updateMember,
@@ -99,6 +100,19 @@ router.patch(
 
     const member = await toggleMemberActive(guildId, memberId, parsed.data.is_active);
     res.json(member);
+  }),
+);
+
+router.delete(
+  "/guilds/:guildId/members/:memberId",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const guildId = ensureUuid(req.params.guildId, "guildId");
+    const memberId = ensureUuid(req.params.memberId, "memberId");
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin"]);
+
+    await deleteMember(guildId, memberId);
+    res.status(204).send();
   }),
 );
 

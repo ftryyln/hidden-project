@@ -6,6 +6,13 @@ export interface LootListResponse {
   total: number;
 }
 
+export interface LootListFilters {
+  search?: string;
+  status?: "distributed" | "pending";
+  page?: number;
+  pageSize?: number;
+}
+
 export interface CreateLootPayload {
   boss_name: string;
   item_name: string;
@@ -19,8 +26,13 @@ export interface DistributeLootPayload {
   distributions: LootDistribution[];
 }
 
-export async function listLoot(guildId: string): Promise<LootListResponse> {
-  const { data } = await api.get<LootListResponse>(`/guilds/${guildId}/loot`);
+export async function listLoot(
+  guildId: string,
+  filters: LootListFilters = {},
+): Promise<LootListResponse> {
+  const { data } = await api.get<LootListResponse>(`/guilds/${guildId}/loot`, {
+    params: filters,
+  });
   return data;
 }
 
