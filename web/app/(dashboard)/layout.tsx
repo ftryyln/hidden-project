@@ -105,16 +105,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 </Link>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:flex-none">
-                <GuildSwitcher
-                  value={selectedGuild}
-                  onChange={handleGuildChange}
-                  className="min-w-[200px] sm:w-72 lg:w-80"
-                />
+              <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:flex-none sm:ml-auto">
                 <ThemeToggle
                   variant="outline"
                   size="icon"
                   className="rounded-full border-border/60 text-foreground"
+                />
+                <GuildSwitcher
+                  value={selectedGuild}
+                  onChange={handleGuildChange}
+                  className="min-w-[200px] sm:w-72 lg:w-80"
                 />
               </div>
             </div>
@@ -123,7 +123,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* MAIN */}
         <main className="flex-1 px-4 pb-8 pt-32 sm:px-6 lg:pt-36">
-          <div className="container flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-10">
+          <div className="container mt-4 flex flex-col gap-6 sm:mt-6 lg:flex-row lg:items-start lg:gap-10">
             <aside className="hidden lg:block lg:w-80 lg:flex-shrink-0">
               <div className="sticky top-28 space-y-6">
                 <DashboardNav

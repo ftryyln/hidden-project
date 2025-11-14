@@ -52,8 +52,7 @@ export function UserMenu({
     });
   };
 
-  const handleProfileNavigate = (event: Event) => {
-    event.preventDefault();
+  const handleProfileNavigate = () => {
     router.push("/profile");
   };
 
@@ -139,7 +138,7 @@ export function UserMenu({
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={handleProfileNavigate} className="gap-2">
           <UserRound className="h-4 w-4" />
-          Profile settings
+          Profile Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={handleLogout} className="gap-2 text-destructive">

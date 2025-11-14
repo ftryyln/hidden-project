@@ -101,7 +101,7 @@ export default function ProfilePage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pt-4 sm:pt-0 sm:mt-0 mt-2">
       <Card>
         <CardHeader>
           <CardTitle>Profile</CardTitle>
