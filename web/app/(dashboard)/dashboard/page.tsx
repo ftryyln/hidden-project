@@ -119,8 +119,10 @@ export default function DashboardPage() {
             data?.recentTransactions?.map((tx) => ({
               key: tx.id,
               cells: [
-                <span className="whitespace-nowrap">{formatDateTime(tx.created_at)}</span>,
-                <div className="flex flex-col gap-1" key="category">
+                <span className="whitespace-nowrap" key={`tx-date-${tx.id}`}>
+                  {formatDateTime(tx.created_at)}
+                </span>,
+                <div className="flex flex-col gap-1" key={`tx-category-${tx.id}`}>
                   <Badge
                     className="w-fit"
                     variant={
@@ -133,12 +135,15 @@ export default function DashboardPage() {
                   >
                     {tx.tx_type}
                   </Badge>
-                  <span className="text-sm font-medium leading-tight whitespace-nowrap" key="category-label">
+                  <span
+                    className="text-sm font-medium leading-tight whitespace-nowrap"
+                    key={`tx-category-label-${tx.id}`}
+                  >
                     {tx.category}
                   </span>
                 </div>,
-                <WemixAmount key="amount" value={tx.amount} />,
-                <Badge key="status" variant={tx.confirmed ? "success" : "warning"}>
+                <WemixAmount key={`tx-amount-${tx.id}`} value={tx.amount} />,
+                <Badge key={`tx-status-${tx.id}`} variant={tx.confirmed ? "success" : "warning"}>
                   {tx.confirmed ? "Confirmed" : "Pending"}
                 </Badge>,
               ],
@@ -157,13 +162,15 @@ export default function DashboardPage() {
             data?.recentLoot?.map((loot) => ({
               key: loot.id,
               cells: [
-                <span className="whitespace-nowrap">{formatDateTime(loot.created_at)}</span>,
-                <div className="flex flex-col" key="item">
+                <span className="whitespace-nowrap" key={`loot-date-${loot.id}`}>
+                  {formatDateTime(loot.created_at)}
+                </span>,
+                <div className="flex flex-col" key={`loot-item-${loot.id}`}>
                   <span className="font-medium">{loot.item_name}</span>
                   <span className="text-xs text-muted-foreground">{loot.boss_name}</span>
                 </div>,
-                <WemixAmount key="value" value={loot.estimated_value} />,
-                <Badge key="status" variant={loot.distributed ? "success" : "warning"}>
+                <WemixAmount key={`loot-value-${loot.id}`} value={loot.estimated_value} />,
+                <Badge key={`loot-status-${loot.id}`} variant={loot.distributed ? "success" : "warning"}>
                   {loot.distributed ? "Distributed" : "Pending"}
                 </Badge>,
               ],
