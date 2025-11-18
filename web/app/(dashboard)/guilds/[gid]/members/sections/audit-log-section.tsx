@@ -111,16 +111,16 @@ export function AuditLogSection({
       title="Audit log"
       description="Track invite activity and access changes."
       actions={
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:flex-nowrap">
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search activity"
-            className="rounded-full border-border/60 text-sm"
+            className="flex-1 rounded-full border-border/60 text-sm"
             aria-label="Search audit log"
           />
           <Select value={filterValue} onValueChange={onFilterChange}>
-            <SelectTrigger className="w-40 rounded-full border-border/60 bg-muted/40 text-xs font-semibold uppercase tracking-wide">
+            <SelectTrigger className="w-full rounded-full border-border/60 bg-muted/40 text-xs font-semibold uppercase tracking-wide sm:w-48">
               <SelectValue placeholder="Filter actions" />
             </SelectTrigger>
             <SelectContent align="end">
@@ -134,11 +134,11 @@ export function AuditLogSection({
           <Button
             type="button"
             variant="outline"
-            size="icon"
             onClick={onRefresh}
             aria-label="Refresh audit log"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
           </Button>
           {canLoadMore && onLoadMore && (
             <Button type="button" variant="outline" onClick={onLoadMore} disabled={isFetchingMore}>

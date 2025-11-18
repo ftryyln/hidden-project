@@ -96,7 +96,7 @@ export function InviteLinksSection({
 
   return (
     <SectionCard
-      title="Invite members"
+      title="Invite Members"
       description="Create invite links with default roles and expiry."
       icon={<Link className="h-5 w-5" />}
     >
@@ -104,7 +104,7 @@ export function InviteLinksSection({
         {canManageInvites ? (
           <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
             <div className="grid gap-1">
-              <span className="text-sm font-semibold">Recipient email (optional)</span>
+              <span className="text-sm font-semibold">Recipient Email (optional)</span>
               <Input
                 type="email"
                 placeholder="new-user@example.com"
@@ -210,30 +210,6 @@ export function InviteLinksSection({
           <div className="space-y-2">
             <Skeleton className="h-12 rounded-2xl" />
             <Skeleton className="h-12 rounded-2xl" />
-          </div>
-        )}
-
-        {!isLoading && invites.length > 0 && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Input
-              type="search"
-              placeholder="Search invites"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="rounded-full sm:max-w-sm"
-            />
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as InviteStatusFilter)}>
-              <SelectTrigger className="w-full rounded-full sm:w-56">
-                <SelectValue placeholder="Status filter" />
-              </SelectTrigger>
-              <SelectContent>
-                {INVITE_STATUS_FILTERS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         )}
 

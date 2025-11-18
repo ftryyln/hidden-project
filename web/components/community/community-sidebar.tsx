@@ -72,7 +72,7 @@ export function CommunitySidebar() {
       </SectionCard>
 
       <SectionCard
-        title="Creator spotlight"
+        title="Creator Spotlight"
         description="Kyuto breaks down raid clears, meta builds, and the latest updates."
         icon={<Youtube className="h-5 w-5" />}
       >

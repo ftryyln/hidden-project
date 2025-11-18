@@ -80,7 +80,7 @@ export function AccessControlSection({
 
   return (
     <SectionCard
-      title="Guild access control"
+      title="Guild Access Control"
       description="Promote members to manage guild resources."
       icon={<Shield className="h-5 w-5" />}
     >
@@ -88,7 +88,7 @@ export function AccessControlSection({
         {canManageRoles ? (
           <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] lg:items-end">
             <div className="grid gap-1">
-              <span className="text-sm font-semibold">User email</span>
+              <span className="text-sm font-semibold">User Email</span>
               <Input
                 type="email"
                 placeholder="user@example.com"
@@ -142,31 +142,6 @@ export function AccessControlSection({
           <p className="text-sm text-muted-foreground">
             No authenticated users are linked to this guild yet. Invite users or promote them to grant access.
           </p>
-        )}
-
-        {!isLoading && assignments.length > 0 && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Input
-              type="search"
-              placeholder="Search by name or email"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="rounded-full sm:max-w-sm"
-            />
-            <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as RoleFilter)}>
-              <SelectTrigger className="w-full rounded-full sm:w-52">
-                <SelectValue placeholder="Filter role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All roles</SelectItem>
-                {ROLE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         )}
 
         {!isLoading && pageAssignments.length > 0 && (

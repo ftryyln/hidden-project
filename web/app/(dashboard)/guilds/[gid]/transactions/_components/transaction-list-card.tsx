@@ -77,33 +77,39 @@ export function TransactionListCard({
           <CardDescription>Confirm transactions to include them in the closing balance.</CardDescription>
         </div>
 
-        <div className="flex flex-col gap-2 md:flex-row md:items-center">
-          <DateRangePicker value={filters.range} onChange={onRangeChange} />
-          <Select
-            value={filters.type ?? "all"}
-            onValueChange={(value) => onTypeChange(value as TransactionType | "all")}
-          >
-            <SelectTrigger className="w-full rounded-full md:w-[180px]">
-              <SelectValue placeholder="All types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="income">Income</SelectItem>
-              <SelectItem value="expense">Expense</SelectItem>
-              <SelectItem value="transfer">Transfer</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input
-            value={searchValue}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Search transactions"
-            className="rounded-full border-border/60 md:w-64"
-            aria-label="Search transactions"
-          />
-          <Button variant="ghost" onClick={onRefresh}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
+        <div className="flex w-full flex-col gap-3">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <Input
+              value={searchValue}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder="Search transactions"
+              className="rounded-full border-border/60 md:w-72"
+              aria-label="Search transactions"
+            />
+            <Button variant="outline" onClick={onRefresh} className="rounded-full md:w-auto">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          </div>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <div className="w-full md:flex-1">
+              <DateRangePicker value={filters.range} onChange={onRangeChange} />
+            </div>
+            <Select
+              value={filters.type ?? "all"}
+              onValueChange={(value) => onTypeChange(value as TransactionType | "all")}
+            >
+              <SelectTrigger className="w-full rounded-full md:w-[180px]">
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="income">Income</SelectItem>
+                <SelectItem value="expense">Expense</SelectItem>
+                <SelectItem value="transfer">Transfer</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
 

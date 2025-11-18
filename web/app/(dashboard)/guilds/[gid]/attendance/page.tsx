@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
@@ -184,7 +183,7 @@ export default function GuildAttendancePage() {
             Track who showed up for each boss or map run, including timestamps and loot eligibility.
           </p>
         </div>
-        <Button onClick={handleOpenCreate}>Record attendance</Button>
+        <Button onClick={handleOpenCreate}>Record Attendance</Button>
       </div>
 
       <Card>
@@ -474,6 +473,9 @@ function AttendanceFormDialog({
   const [bossName, setBossName] = useState("");
   const [mapName, setMapName] = useState("");
   const [selected, setSelected] = useState<Record<string, AttendeeState>>({});
+  const [attendeeSearch, setAttendeeSearch] = useState("");
+  const [attendeePage, setAttendeePage] = useState(1);
+  const ATTENDEE_PAGE_SIZE = 5;
 
   useEffect(() => {
     if (!open) {
@@ -481,6 +483,8 @@ function AttendanceFormDialog({
       setMapName("");
       setStartedAt(new Date().toISOString().slice(0, 16));
       setSelected({});
+      setAttendeeSearch("");
+      setAttendeePage(1);
       return;
     }
 
@@ -502,8 +506,14 @@ function AttendanceFormDialog({
       setMapName("");
       setStartedAt(new Date().toISOString().slice(0, 16));
       setSelected({});
+      setAttendeeSearch("");
+      setAttendeePage(1);
     }
   }, [open, sessionId, initialDetail]);
+
+  useEffect(() => {
+    setAttendeePage(1);
+  }, [attendeeSearch, members]);
 
   const toggleMember = (memberId: string, checked: boolean) => {
     setSelected((prev) => {
@@ -537,11 +547,58 @@ function AttendanceFormDialog({
 
   const selectedCount = Object.keys(selected).length;
 
+  const filteredMembers = useMemo(() => {
+    const query = attendeeSearch.trim().toLowerCase();
+    if (!query) return members;
+    return members.filter((member) => {
+      const name = member.in_game_name?.toLowerCase() ?? "";
+      const role = member.role_in_guild?.toLowerCase() ?? "";
+      return name.includes(query) || role.includes(query);
+    });
+  }, [members, attendeeSearch]);
+
+  const totalAttendeePages = Math.max(
+    1,
+    Math.ceil(filteredMembers.length / ATTENDEE_PAGE_SIZE),
+  );
+
+  useEffect(() => {
+    setAttendeePage((prev) => Math.min(prev, totalAttendeePages));
+  }, [totalAttendeePages]);
+
+  const pagedMembers = useMemo(() => {
+    const start = (attendeePage - 1) * ATTENDEE_PAGE_SIZE;
+    return filteredMembers.slice(start, start + ATTENDEE_PAGE_SIZE);
+  }, [filteredMembers, attendeePage]);
+
+  const filteredIds = useMemo(() => filteredMembers.map((member) => member.id), [filteredMembers]);
+  const allFilteredSelected =
+    filteredIds.length > 0 && filteredIds.every((id) => Boolean(selected[id]));
+
+  const handleToggleAll = () => {
+    setSelected((prev) => {
+      if (allFilteredSelected) {
+        const next = { ...prev };
+        filteredIds.forEach((id) => {
+          delete next[id];
+        });
+        return next;
+      }
+      const next = { ...prev };
+      filteredIds.forEach((id) => {
+        if (!next[id]) {
+          next[id] = { memberId: id };
+        }
+      });
+      return next;
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{sessionId ? "Edit attendance" : "Record attendance"}</DialogTitle>
+          <DialogTitle>{sessionId ? "Edit Attendance" : "Record Attendance"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -572,76 +629,129 @@ function AttendanceFormDialog({
               </div>
               <Badge variant="outline">{selectedCount} selected</Badge>
             </div>
-            <div className="rounded-2xl border border-border/60">
-              <ScrollArea className="max-h-72">
-                {members.length === 0 ? (
-                  <p className="p-4 text-sm text-muted-foreground">No members available.</p>
-                ) : (
-                  <div className="divide-y">
-                    {members.map((member) => {
-                      const current = selected[member.id];
-                      return (
-                        <div key={member.id} className="p-4">
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              checked={Boolean(current)}
-                              onCheckedChange={(next) =>
-                                toggleMember(member.id, Boolean(next))
-                              }
-                            />
-                            <div className="flex-1 space-y-2">
-                              <div>
-                                <p className="font-medium">{member.in_game_name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {member.role_in_guild}
-                                </p>
-                              </div>
-                              {current && (
-                                <div className="grid gap-2 md:grid-cols-2">
-                                  <div>
-                                    <Label className="text-xs">Note</Label>
-                                    <Textarea
-                                      value={current.note ?? ""}
-                                      onChange={(event) =>
-                                        setSelected((prev) => ({
-                                          ...prev,
-                                          [member.id]: {
-                                            ...prev[member.id],
-                                            memberId: member.id,
-                                            note: event.target.value,
-                                          },
-                                        }))
-                                      }
-                                      rows={2}
-                                    />
+            <div className="space-y-3 rounded-2xl border border-border/60 p-4">
+              {members.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No members available.</p>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <Input
+                      value={attendeeSearch}
+                      onChange={(event) => setAttendeeSearch(event.target.value)}
+                      placeholder="Search members"
+                      className="rounded-full border-border/60 sm:max-w-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={handleToggleAll}
+                      disabled={filteredMembers.length === 0}
+                    >
+                      {allFilteredSelected ? "Clear selection" : "Select all"}
+                    </Button>
+                  </div>
+                  {filteredMembers.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No members match your search.</p>
+                  ) : (
+                    <>
+                      <div className="divide-y">
+                        {pagedMembers.map((member) => {
+                          const current = selected[member.id];
+                          return (
+                            <div key={member.id} className="p-4">
+                              <div className="flex items-start gap-3">
+                                <Checkbox
+                                  checked={Boolean(current)}
+                                  onCheckedChange={(next) =>
+                                    toggleMember(member.id, Boolean(next))
+                                  }
+                                />
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex flex-col gap-0.5 text-sm">
+                                    <p className="font-medium leading-tight">
+                                      {member.in_game_name}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {member.role_in_guild ?? "member"}
+                                    </p>
                                   </div>
-                                  <div>
-                                    <Label className="text-xs">Loot Tag</Label>
-                                    <Input
-                                      value={current.lootTag ?? ""}
-                                      onChange={(event) =>
-                                        setSelected((prev) => ({
-                                          ...prev,
-                                          [member.id]: {
-                                            ...prev[member.id],
-                                            memberId: member.id,
-                                            lootTag: event.target.value,
-                                          },
-                                        }))
-                                      }
-                                      placeholder="e.g. Rare drop"
-                                    />
-                                  </div>
+                                  {current && (
+                                    <div className="grid gap-2 md:grid-cols-2">
+                                      <div>
+                                        <Label className="text-xs">Note</Label>
+                                        <Textarea
+                                          value={current.note ?? ""}
+                                          onChange={(event) =>
+                                            setSelected((prev) => ({
+                                              ...prev,
+                                              [member.id]: {
+                                                ...prev[member.id],
+                                                memberId: member.id,
+                                                note: event.target.value,
+                                              },
+                                            }))
+                                          }
+                                          rows={2}
+                                        />
+                                      </div>
+                                      <div>
+                                        <Label className="text-xs">Loot Tag</Label>
+                                        <Input
+                                          value={current.lootTag ?? ""}
+                                          onChange={(event) =>
+                                            setSelected((prev) => ({
+                                              ...prev,
+                                              [member.id]: {
+                                                ...prev[member.id],
+                                                memberId: member.id,
+                                                lootTag: event.target.value,
+                                              },
+                                            }))
+                                          }
+                                          placeholder="e.g. Rare drop"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                      {filteredMembers.length > ATTENDEE_PAGE_SIZE && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span>
+                            Page {attendeePage} of {totalAttendeePages}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={attendeePage <= 1}
+                              onClick={() => setAttendeePage((prev) => Math.max(1, prev - 1))}
+                            >
+                              Previous
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={attendeePage >= totalAttendeePages}
+                              onClick={() => setAttendeePage((prev) => Math.min(prev + 1, totalAttendeePages))}
+                            >
+                              Next
+                            </Button>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </ScrollArea>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2">
