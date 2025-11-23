@@ -77,8 +77,8 @@ export function TransactionListCard({
           <CardDescription>Confirm transactions to include them in the closing balance.</CardDescription>
         </div>
 
-        <div className="flex w-full flex-col gap-3">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+        <div className="flex w-full flex-col items-stretch gap-3 md:w-auto md:self-end md:items-end">
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:justify-end">
             <Input
               value={searchValue}
               onChange={(event) => onSearchChange(event.target.value)}
@@ -91,8 +91,8 @@ export function TransactionListCard({
               Refresh
             </Button>
           </div>
-          <div className="flex flex-col gap-2 md:flex-row md:items-center">
-            <div className="w-full md:flex-1">
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center md:justify-end">
+            <div className="w-full md:w-auto">
               <DateRangePicker value={filters.range} onChange={onRangeChange} />
             </div>
             <Select

@@ -4,6 +4,7 @@ import { useRef, type InputHTMLAttributes } from "react";
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 export interface DateRange {
   from?: string;
@@ -19,17 +20,16 @@ interface DateRangePickerProps {
 
 export function DateRangePicker({ label, value, onChange, className }: DateRangePickerProps) {
   return (
-    <div className={`flex flex-col gap-1 ${className ?? ""}`}>
+    <div className={cn("flex flex-col gap-1", className)}>
       {label && <Label>{label}</Label>}
 
-      {/* tidak full width lagi, hanya selebar dua input */}
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center gap-2">
         <DateInput
           value={value.from ?? ""}
           placeholder="From date"
           onChange={(event) => onChange({ ...value, from: event.target.value || undefined })}
         />
-        <span className="text-xs text-muted-foreground">–</span>
+        <span className="px-1 text-xs text-muted-foreground whitespace-nowrap">-</span>
         <DateInput
           value={value.to ?? ""}
           placeholder="To date"
@@ -63,8 +63,10 @@ function DateInput({ value, onChange, placeholder, className, ...props }: DateIn
         onFocus={openPicker}
         onChange={onChange}
         aria-label={placeholder}
-        // width dibatasi supaya nggak melar ke kanan
-        className={`h-9 w-[150px] rounded-full border-border/60 px-3 text-right ${className ?? ""}`}
+        className={cn(
+          "h-9 flex-1 basis-0 min-w-0 rounded-full border-border/60 px-3 text-sm text-left sm:max-w-[150px]",
+          className,
+        )}
         {...props}
       />
     </div>

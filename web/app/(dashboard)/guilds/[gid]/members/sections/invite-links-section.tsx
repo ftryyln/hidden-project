@@ -206,6 +206,30 @@ export function InviteLinksSection({
           </div>
         )}
 
+        {invites.length > 0 && (
+          <div className="flex flex-col gap-2 rounded-2xl border border-border/40 p-3 sm:flex-row sm:items-center">
+            <Input
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search invites"
+              className="rounded-full border-border/60 sm:w-64"
+              aria-label="Search invites"
+            />
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as InviteStatusFilter)}>
+              <SelectTrigger className="rounded-full border-border/60 sm:w-48">
+                <SelectValue placeholder="Filter status" />
+              </SelectTrigger>
+              <SelectContent>
+                {INVITE_STATUS_FILTERS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {isLoading && (
           <div className="space-y-2">
             <Skeleton className="h-12 rounded-2xl" />
