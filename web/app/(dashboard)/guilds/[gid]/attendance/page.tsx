@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,6 +87,7 @@ export default function GuildAttendancePage() {
         mapName: filters.mapName,
       }),
     enabled: Boolean(guildId),
+    placeholderData: keepPreviousData,
   });
 
   const membersQuery = useQuery({
@@ -688,8 +689,8 @@ function AttendanceFormDialog({
                             <div
                               key={member.id}
                               className={`rounded-xl p-4 transition-all ${current
-                                  ? "bg-primary/5 ring-2 ring-primary/20"
-                                  : "hover:bg-muted/30"
+                                ? "bg-primary/5 ring-2 ring-primary/20"
+                                : "hover:bg-muted/30"
                                 }`}
                             >
                               <div className="flex items-start gap-3">

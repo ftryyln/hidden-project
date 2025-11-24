@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { TransactionForm, type TransactionSchema } from "@/components/forms/transaction-form";
@@ -60,10 +60,10 @@ export default function TransactionsPage() {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+
   const transactionsQuery = useQuery({
     queryKey: ["guild", guildId, "transactions", filters],
     queryFn: () =>
@@ -73,7 +73,7 @@ export default function TransactionsPage() {
         type: filters.type && filters.type !== "all" ? filters.type : undefined,
       }),
     enabled: Boolean(guildId),
-
+    placeholderData: keepPreviousData,
   });
 
   const historyQuery = useQuery({
