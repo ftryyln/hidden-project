@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MemberForm, type MemberSchema } from "@/components/forms/member-form";
@@ -55,6 +55,7 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
         pageSize: PAGE_SIZE,
       }),
     enabled: Boolean(guildId),
+    placeholderData: keepPreviousData,
     staleTime: 5 * 1000,
   });
 
