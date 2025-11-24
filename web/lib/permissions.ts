@@ -59,7 +59,7 @@ export function getGuildPermissions(role: UserRole | null): GuildPermissions {
     case "officer":
       return {
         role,
-        canManageMembers: false,
+        canManageMembers: true,
         canManageRoles: false,
         canManageTransactions: true,
         canManageLoot: true,

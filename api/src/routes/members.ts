@@ -51,7 +51,7 @@ router.post(
   requireAuth,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const guildId = ensureUuid(req.params.guildId, "guildId");
-    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin"]);
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin", "officer"]);
 
     const parsed = memberUpsertSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -69,7 +69,7 @@ router.put(
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const guildId = ensureUuid(req.params.guildId, "guildId");
     const memberId = ensureUuid(req.params.memberId, "memberId");
-    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin"]);
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin", "officer"]);
 
     const parsed = memberUpsertSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -91,7 +91,7 @@ router.patch(
   asyncHandler(async (req: AuthenticatedRequest, res) => {
     const guildId = ensureUuid(req.params.guildId, "guildId");
     const memberId = ensureUuid(req.params.memberId, "memberId");
-    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin"]);
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, ["guild_admin", "officer"]);
 
     const parsed = toggleSchema.safeParse(req.body);
     if (!parsed.success) {
