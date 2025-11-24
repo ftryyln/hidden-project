@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SectionCard } from "@/components/responsive/section-card";
 import { FilterBar } from "@/components/responsive/filter-bar";
 import type { Member } from "@/lib/types";
-import { formatDate } from "@/lib/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface MembersSectionProps {
