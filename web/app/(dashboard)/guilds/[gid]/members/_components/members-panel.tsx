@@ -158,7 +158,7 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
       in_game_name: selectedMember.in_game_name,
       role_in_guild: selectedMember.role_in_guild,
       class: selectedMember.class ?? undefined,
-      combat_power: selectedMember.combat_power ?? ("" as any),
+      combat_power: selectedMember.combat_power ?? "",
       join_date: selectedMember.join_date ?? undefined,
       notes: selectedMember.notes ?? undefined,
       discord: typeof contact.discord === "string" ? (contact.discord as string) : "",

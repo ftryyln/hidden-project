@@ -51,7 +51,7 @@ export function MemberForm({
       in_game_name: "",
       role_in_guild: "raider",
       class: "",
-      combat_power: "" as any,
+      combat_power: "",
       join_date: "",
       discord: "",
       notes: "",

@@ -130,7 +130,6 @@ export function MembersSection({
                   <TableHead>Role</TableHead>
                   <TableHead>Class</TableHead>
                   <TableHead>Combat Power</TableHead>
-                  <TableHead>Joined</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -169,9 +168,6 @@ export function MembersSection({
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {member.join_date ? formatDate(member.join_date) : "-"}
                       </TableCell>
                       <TableCell>
                         <Badge variant={member.is_active ? "success" : "secondary"}>

@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { Member, MemberRole } from "@/lib/types";
+import type { Member } from "@/lib/types";
 
 export interface MemberListParams {
   search?: string;
