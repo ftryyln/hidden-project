@@ -128,6 +128,8 @@ export function MembersSection({
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Combat Power</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -147,15 +149,27 @@ export function MembersSection({
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-sm font-semibold uppercase text-secondary-foreground">
                             {getInitials(member.in_game_name)}
                           </div>
-                          <div className="flex min-w-0 items-center gap-2">
+                          <div className="flex min-w-0 flex-col">
                             <p className="truncate font-semibold text-foreground">
                               {member.in_game_name}
                             </p>
-                            <span className="truncate text-xs text-muted-foreground">• {discord}</span>
+                            {discord !== "-" && (
+                              <span className="truncate text-xs text-muted-foreground">{discord}</span>
+                            )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{member.role_in_guild}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {member.class || <span className="text-muted-foreground">-</span>}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {member.combat_power ? (
+                          <span className="font-medium">{member.combat_power.toLocaleString()}</span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {member.join_date ? formatDate(member.join_date) : "-"}
                       </TableCell>

@@ -13,9 +13,10 @@ import { toApiError } from "@/lib/api/errors";
 const registerSchema = z
   .object({
     email: z.string().email("Please enter a valid email address"),
+    display_name: z.string().max(120).optional(),
+    discord_username: z.string().min(1, "Discord username is required").max(50),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(6, "Password confirmation is required"),
-    display_name: z.string().max(120).optional(),
   })
   .refine((values) => values.password === values.confirmPassword, {
     message: "Passwords do not match",
@@ -36,9 +37,10 @@ export function RegisterForm() {
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: "",
+      display_name: "",
+      discord_username: "",
       password: "",
       confirmPassword: "",
-      display_name: "",
     },
   });
 
@@ -52,6 +54,7 @@ export function RegisterForm() {
           email: values.email,
           password: values.password,
           display_name: values.display_name || undefined,
+          discord_username: values.discord_username,
           invite_token: inviteToken,
         }),
       });
@@ -118,6 +121,21 @@ export function RegisterForm() {
         {form.formState.errors.display_name && (
           <p className="text-xs text-destructive">
             {form.formState.errors.display_name.message}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="discord_username">Discord Username *</Label>
+        <Input
+          id="discord_username"
+          type="text"
+          placeholder="username#1234 or username"
+          {...form.register("discord_username")}
+        />
+        {form.formState.errors.discord_username && (
+          <p className="text-xs text-destructive">
+            {form.formState.errors.discord_username.message}
           </p>
         )}
       </div>

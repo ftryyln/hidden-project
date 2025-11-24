@@ -8,6 +8,7 @@ interface RegisterPayload {
   password: string;
   invite_token?: string | null;
   display_name?: string | null;
+  discord_username?: string | null;
 }
 
 export async function POST(request: Request) {

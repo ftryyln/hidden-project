@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   LayoutGrid,
   Users,
@@ -24,8 +25,12 @@ import {
   Menu,
   Wallet,
   CalendarCheck,
+  UserRound,
+  LogOut,
 } from "lucide-react";
-import { UserMenu } from "@/components/navigation/user-menu";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/components/ui/use-toast";
+import { formatLabel } from "@/lib/format";
 
 interface DashboardNavProps {
   guildId: string | null;
@@ -108,14 +113,14 @@ function LinkPill({
   const baseClasses =
     variant === "pill"
       ? "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition"
-      : "flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium transition-colors";
+      : "flex w-full items-center justify-start gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors";
   const stateClasses =
     variant === "pill"
       ? link.isActive
         ? "bg-primary text-primary-foreground shadow-sm"
         : "text-muted-foreground hover:bg-muted/40"
       : link.isActive
-        ? "border-primary/40 bg-primary/15 text-primary"
+        ? "border-primary bg-primary/10 text-primary shadow-sm"
         : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/40";
   return (
     <Link
@@ -144,6 +149,28 @@ export function DashboardNav({
   showProfile = false,
 }: DashboardNavProps) {
   const links = useNavLinks(guildId, isSuperAdmin);
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const toast = useToast();
+
+  const initials = user?.display_name
+    ?.split(" ")
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleLogout = async () => {
+    await logout();
+    toast({
+      title: "Signed out",
+      description: "See you next time!",
+    });
+  };
+
+  const handleProfileNavigate = () => {
+    router.push("/profile");
+  };
 
   if (links.length === 0) {
     return null;
@@ -153,8 +180,18 @@ export function DashboardNav({
     <nav className={cn("w-full", className)}>
       <div className="flex flex-col gap-3">
         {showProfile && (
-          <div className="rounded-2xl border border-border/50 bg-muted/5 p-2">
-            <UserMenu appearance="sidebar" showDetails className="w-full" />
+          <div className="rounded-2xl border border-border/50 bg-muted/5 p-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-11 w-11 bg-muted/40">
+                <AvatarFallback>{initials || "GM"}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-1 leading-tight">
+                <p className="text-sm font-semibold">{user?.display_name ?? "Officer"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                  {formatLabel(user?.app_role) || "Member"}
+                </p>
+              </div>
+            </div>
           </div>
         )}
         <div className="flex flex-col gap-1 rounded-2xl border border-border/50 bg-muted/5 p-2">
@@ -162,6 +199,24 @@ export function DashboardNav({
             <LinkPill key={link.key} link={link} variant="sidebar" />
           ))}
         </div>
+        {showProfile && (
+          <div className="flex flex-col gap-1 rounded-2xl border border-border/50 bg-muted/5 p-2">
+            <button
+              onClick={handleProfileNavigate}
+              className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border/60 hover:bg-muted/40"
+            >
+              <UserRound className="h-4 w-4" />
+              Profile Settings
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-destructive transition-colors hover:border-border/60 hover:bg-muted/40"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   );
@@ -175,6 +230,30 @@ export function DashboardMobileNav({
 }: DashboardMobileNavProps) {
   const links = useNavLinks(guildId, isSuperAdmin);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const toast = useToast();
+
+  const initials = user?.display_name
+    ?.split(" ")
+    .map((part) => part.charAt(0))
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const handleLogout = async () => {
+    await logout();
+    toast({
+      title: "Signed out",
+      description: "See you next time!",
+    });
+    setMenuOpen(false);
+  };
+
+  const handleProfileNavigate = () => {
+    router.push("/profile");
+    setMenuOpen(false);
+  };
 
   if (links.length === 0) {
     return null;
@@ -197,22 +276,59 @@ export function DashboardMobileNav({
             <Menu className="h-5 w-5" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-sm">
+        <DialogContent className="flex max-h-[90vh] flex-col sm:max-w-sm">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0">
             <DialogTitle className="text-left text-base font-semibold">Menu</DialogTitle>
           </DialogHeader>
 
-          <div className="mt-4 grid gap-5">
-            {mobileExtras && <div className="grid gap-4">{mobileExtras}</div>}
-            <div className="grid gap-2">
-              {links.map((link) => (
-                <LinkPill
-                  key={link.key}
-                  link={link}
-                  onNavigate={() => setMenuOpen(false)}
-                  className="border border-border bg-background/70"
-                />
-              ))}
+          <div className="flex-1 overflow-y-auto pr-2">
+            <div className="grid gap-6 py-4">
+              {mobileExtras && <div className="grid gap-4">{mobileExtras}</div>}
+
+              {/* User Info */}
+              <div className="rounded-2xl border border-border/50 bg-muted/5 p-4">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-11 w-11 bg-muted/40">
+                    <AvatarFallback>{initials || "GM"}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-1 leading-tight">
+                    <p className="text-sm font-semibold">{user?.display_name ?? "Officer"}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                      {formatLabel(user?.app_role) || "Member"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigation Links */}
+              <div className="grid gap-2">
+                {links.map((link) => (
+                  <LinkPill
+                    key={link.key}
+                    link={link}
+                    onNavigate={() => setMenuOpen(false)}
+                    className=""
+                  />
+                ))}
+              </div>
+
+              {/* Profile Settings & Logout */}
+              <div className="grid gap-2">
+                <button
+                  onClick={handleProfileNavigate}
+                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-background/70 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/40"
+                >
+                  <UserRound className="h-4 w-4" />
+                  Profile Settings
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-background/70 px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-muted/40"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </DialogContent>

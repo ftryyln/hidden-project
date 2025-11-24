@@ -20,6 +20,8 @@ import { Switch } from "@/components/ui/switch";
 const memberSchema = z.object({
   in_game_name: z.string().min(2, "Name must be at least 2 characters"),
   role_in_guild: z.custom<MemberRole>(),
+  class: z.string().optional(),
+  combat_power: z.coerce.number().int().min(0).optional().or(z.literal('')),
   join_date: z.string().optional(),
   discord: z.string().optional(),
   notes: z.string().optional(),
@@ -48,6 +50,8 @@ export function MemberForm({
     defaultValues: {
       in_game_name: "",
       role_in_guild: "raider",
+      class: "",
+      combat_power: "" as any,
       join_date: "",
       discord: "",
       notes: "",
@@ -89,6 +93,25 @@ export function MemberForm({
             <SelectItem value="casual">Casual</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="class">Class</Label>
+        <Input id="class" placeholder="e.g. Warrior, Mage" {...form.register("class")} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="combat_power">Combat Power</Label>
+        <Input
+          id="combat_power"
+          type="number"
+          min="0"
+          placeholder="e.g. 50000"
+          {...form.register("combat_power")}
+        />
+        {form.formState.errors.combat_power && (
+          <p className="text-xs text-destructive">
+            {form.formState.errors.combat_power.message}
+          </p>
+        )}
       </div>
       <div className="grid gap-2">
         <Label htmlFor="join_date">Join date</Label>

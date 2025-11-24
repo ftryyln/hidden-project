@@ -243,7 +243,7 @@ export default function GuildAttendancePage() {
             <p className="text-sm text-muted-foreground">No attendance recorded yet.</p>
           ) : (
             <div className="space-y-3">
-{sessions.map((session: AttendanceSessionSummary) => (
+              {sessions.map((session: AttendanceSessionSummary) => (
                 <AttendanceRow
                   key={session.id}
                   session={session}
@@ -396,45 +396,62 @@ function AttendanceRow({
   isDeleting,
 }: AttendanceRowProps) {
   return (
-    <div className="rounded-2xl border border-border/60 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
+    <div className="group rounded-2xl border border-border/60 bg-gradient-to-br from-background to-muted/20 p-5 transition-all hover:border-border hover:shadow-md">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex-1 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
             {session.bossName && (
-              <Badge variant="secondary" className="text-xs">
-                Boss • {session.bossName}
+              <Badge variant="default" className="rounded-full bg-primary/10 text-primary hover:bg-primary/20">
+                <span className="mr-1.5">⚔️</span>
+                {session.bossName}
               </Badge>
             )}
             {session.mapName && (
-              <Badge variant="outline" className="text-xs">
-                Map • {session.mapName}
+              <Badge variant="outline" className="rounded-full border-primary/30 text-primary">
+                <span className="mr-1.5">🗺️</span>
+                {session.mapName}
               </Badge>
             )}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{formatDate(session.startedAt)}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Users className="h-4 w-4" />
-            <span>{session.attendeesCount} attendees</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock4 className="h-4 w-4" />
-            <span>{formatDate(session.updatedAt)}</span>
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <CalendarIcon className="h-4 w-4" />
+              <span>{formatDate(session.startedAt)}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-primary" />
+              <span className="font-medium text-foreground">{session.attendeesCount}</span>
+              <span>attendees</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Clock4 className="h-4 w-4" />
+              <span className="text-xs">Updated {formatDate(session.updatedAt)}</span>
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => onViewDetail(session.id)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onViewDetail(session.id)}
+            className="rounded-full hover:bg-primary/10 hover:text-primary"
+          >
             View
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onEdit(session.id)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(session.id)}
+            className="rounded-full hover:bg-primary/10 hover:text-primary"
+          >
             Edit
           </Button>
           <Button
-            variant="destructive"
+            variant="ghost"
             size="sm"
             onClick={() => onDelete(session.id)}
             disabled={isDeleting}
+            className="rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             Delete
           </Button>
@@ -521,9 +538,9 @@ function AttendanceFormDialog({
         return prev[memberId]
           ? prev
           : {
-              ...prev,
-              [memberId]: { memberId },
-            };
+            ...prev,
+            [memberId]: { memberId },
+          };
       }
       const next = { ...prev };
       delete next[memberId];
@@ -656,31 +673,51 @@ function AttendanceFormDialog({
                     <p className="text-sm text-muted-foreground">No members match your search.</p>
                   ) : (
                     <>
-                      <div className="divide-y">
+                      <div className="divide-y divide-border/40">
                         {pagedMembers.map((member) => {
                           const current = selected[member.id];
+                          const initials = member.in_game_name
+                            .trim()
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map((part) => part[0])
+                            .join("")
+                            .toUpperCase();
                           return (
-                            <div key={member.id} className="p-4">
+                            <div
+                              key={member.id}
+                              className={`rounded-xl p-4 transition-all ${current
+                                  ? "bg-primary/5 ring-2 ring-primary/20"
+                                  : "hover:bg-muted/30"
+                                }`}
+                            >
                               <div className="flex items-start gap-3">
                                 <Checkbox
                                   checked={Boolean(current)}
                                   onCheckedChange={(next) =>
                                     toggleMember(member.id, Boolean(next))
                                   }
+                                  className="mt-1"
                                 />
-                                <div className="flex-1 space-y-2">
-                                  <div className="flex flex-col gap-0.5 text-sm">
-                                    <p className="font-medium leading-tight">
-                                      {member.in_game_name}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {member.role_in_guild ?? "member"}
-                                    </p>
+                                <div className="flex-1 space-y-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                                      {initials}
+                                    </div>
+                                    <div className="flex flex-col gap-0.5 text-sm">
+                                      <p className="font-semibold leading-tight">
+                                        {member.in_game_name}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {member.role_in_guild ?? "member"}
+                                      </p>
+                                    </div>
                                   </div>
                                   {current && (
-                                    <div className="grid gap-2 md:grid-cols-2">
+                                    <div className="grid gap-3 rounded-lg border border-border/40 bg-background/50 p-3 md:grid-cols-2">
                                       <div>
-                                        <Label className="text-xs">Note</Label>
+                                        <Label className="text-xs font-medium">Note</Label>
                                         <Textarea
                                           value={current.note ?? ""}
                                           onChange={(event) =>
@@ -694,10 +731,11 @@ function AttendanceFormDialog({
                                             }))
                                           }
                                           rows={2}
+                                          className="text-xs"
                                         />
                                       </div>
                                       <div>
-                                        <Label className="text-xs">Loot Tag</Label>
+                                        <Label className="text-xs font-medium">Loot Tag</Label>
                                         <Input
                                           value={current.lootTag ?? ""}
                                           onChange={(event) =>
@@ -710,7 +748,8 @@ function AttendanceFormDialog({
                                               },
                                             }))
                                           }
-                                          placeholder="e.g. Rare drop"
+                                          placeholder="e.g. Epic drop"
+                                          className="text-xs"
                                         />
                                       </div>
                                     </div>

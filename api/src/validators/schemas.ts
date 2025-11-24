@@ -24,6 +24,8 @@ export const memberListQuerySchema = z
 export const memberUpsertSchema = z.object({
   in_game_name: z.string().min(1).max(120),
   role_in_guild: z.enum(["leader", "officer", "raider", "casual"]),
+  class: z.string().max(120).optional().nullable(),
+  combat_power: z.coerce.number().int().min(0).optional().nullable(),
   join_date: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
   contact: z.record(z.string(), z.string().optional().nullable()).optional(),

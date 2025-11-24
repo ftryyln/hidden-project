@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { DashboardGuildProvider } from "@/components/dashboard/dashboard-guild-context";
 import { CommunitySidebar } from "@/components/community/community-sidebar";
 import { SiteFooter } from "@/components/navigation/site-footer";
+import { useGuilds } from "@/hooks/queries/use-guilds";
 
 const STORAGE_KEY = "guild-manager:selected-guild";
 
@@ -19,6 +20,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const guildsQuery = useGuilds();
 
   const [selectedGuild, setSelectedGuild] = useState<string | null>(null);
 
@@ -79,6 +81,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   const isSuperAdmin = user?.app_role === "super_admin";
+  const hasGuilds = guildsQuery.isSuccess && (guildsQuery.data?.length ?? 0) > 0;
 
   return (
     <DashboardGuildProvider value={{ selectedGuild, changeGuild: handleGuildChange }}>
@@ -88,14 +91,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <div className="container flex flex-col gap-4 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <DashboardMobileNav
-                  guildId={selectedGuild}
-                  isSuperAdmin={isSuperAdmin}
-                  triggerClassName="bg-muted/30"
-                  mobileExtras={
-                    <UserMenu appearance="sidebar" showDetails className="w-full" />
-                  }
-                />
+                {hasGuilds && (
+                  <DashboardMobileNav
+                    guildId={selectedGuild}
+                    isSuperAdmin={isSuperAdmin}
+                    triggerClassName="bg-muted/30"
+                  />
+                )}
 
                 <Link
                   href="/dashboard"
@@ -111,11 +113,15 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   size="icon"
                   className="rounded-full border-border/60 text-foreground"
                 />
-                <GuildSwitcher
-                  value={selectedGuild}
-                  onChange={handleGuildChange}
-                  className="min-w-[200px] sm:w-72 lg:w-80"
-                />
+                {hasGuilds ? (
+                  <GuildSwitcher
+                    value={selectedGuild}
+                    onChange={handleGuildChange}
+                    className="min-w-[200px] sm:w-72 lg:w-80"
+                  />
+                ) : (
+                  <UserMenu />
+                )}
               </div>
             </div>
           </div>
@@ -124,16 +130,18 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         {/* MAIN */}
         <main className="flex-1 px-4 pb-8 pt-32 sm:px-6 lg:pt-36">
           <div className="container mt-4 flex flex-col gap-6 sm:mt-6 lg:flex-row lg:items-start lg:gap-10">
-            <aside className="hidden lg:block lg:w-80 lg:flex-shrink-0">
-              <div className="sticky top-28 space-y-6">
-                <DashboardNav
-                  guildId={selectedGuild}
-                  isSuperAdmin={isSuperAdmin}
-                  showProfile
-                />
-                <CommunitySidebar />
-              </div>
-            </aside>
+            {hasGuilds && (
+              <aside className="hidden lg:block lg:w-80 lg:flex-shrink-0">
+                <div className="sticky top-28 space-y-6">
+                  <DashboardNav
+                    guildId={selectedGuild}
+                    isSuperAdmin={isSuperAdmin}
+                    showProfile
+                  />
+                  <CommunitySidebar />
+                </div>
+              </aside>
+            )}
             <div className="flex-1 lg:min-h-[calc(100vh-10rem)]">{children}</div>
           </div>
         </main>

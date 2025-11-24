@@ -68,6 +68,8 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
       createMember(guildId!, {
         in_game_name: payload.in_game_name,
         role_in_guild: payload.role_in_guild,
+        class: payload.class?.trim() || null,
+        combat_power: payload.combat_power ? Number(payload.combat_power) : null,
         join_date: payload.join_date?.trim() ? payload.join_date : null,
         notes: payload.notes,
         contact: payload.discord ? { discord: payload.discord } : {},
@@ -90,14 +92,18 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
   const updateMutation = useMutation({
     mutationFn: async (payload: MemberSchema) => {
       if (!selectedMember) throw new Error("Member not selected");
-      return updateMember(guildId!, selectedMember.id, {
+      const updatePayload = {
         in_game_name: payload.in_game_name,
         role_in_guild: payload.role_in_guild,
+        class: payload.class?.trim() || null,
+        combat_power: payload.combat_power ? Number(payload.combat_power) : null,
         join_date: payload.join_date?.trim() ? payload.join_date : null,
         notes: payload.notes,
         contact: payload.discord ? { discord: payload.discord } : {},
         is_active: payload.is_active,
-      });
+      };
+      console.log('Update payload:', updatePayload);
+      return updateMember(guildId!, selectedMember.id, updatePayload);
     },
     onSuccess: async () => {
       await invalidateMembers();
@@ -151,6 +157,8 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
     return {
       in_game_name: selectedMember.in_game_name,
       role_in_guild: selectedMember.role_in_guild,
+      class: selectedMember.class ?? undefined,
+      combat_power: selectedMember.combat_power ?? ("" as any),
       join_date: selectedMember.join_date ?? undefined,
       notes: selectedMember.notes ?? undefined,
       discord: typeof contact.discord === "string" ? (contact.discord as string) : "",
@@ -198,7 +206,7 @@ export function MembersPanel({ guildId, canManageMembers }: MembersPanelProps) {
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedMember ? "Edit member" : "Add member"}</DialogTitle>
           </DialogHeader>

@@ -15,6 +15,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
   display_name: z.string().min(1).max(120).optional(),
+  discord_username: z.string().min(1).max(50).optional(),
   invite_token: z.string().trim().min(1).optional(),
 });
 
@@ -40,7 +41,7 @@ router.post(
       );
     }
 
-    const { email, password, display_name, invite_token } = parsed.data;
+    const { email, password, display_name, discord_username, invite_token } = parsed.data;
 
     const displayName = display_name ?? email.split("@")[0];
     const registrationRedirect = resolveRegistrationRedirect();
@@ -103,6 +104,7 @@ router.post(
         id: userId,
         email,
         display_name: displayName,
+        discord_username: discord_username || null,
       });
     if (profileError) {
       console.warn(

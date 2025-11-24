@@ -91,8 +91,11 @@ export async function fetchGuildSummaries(userId: string): Promise<GuildSummary[
     return [];
   }
 
+  // Filter out guilds where user only has viewer role
+  const filteredData = data.filter((row) => row.role !== "viewer");
+
   const enriched = await Promise.all(
-    data.map(async (row): Promise<GuildSummary> => {
+    filteredData.map(async (row): Promise<GuildSummary> => {
       const guildInfo = Array.isArray(row.guild) ? row.guild?.[0] : row.guild;
       const [memberCount, balance] = await Promise.all([
         getGuildMemberCount(row.guild_id),

@@ -143,6 +143,8 @@ export interface Member {
   user_id?: string | null;
   in_game_name: string;
   role_in_guild: MemberRole;
+  class?: string | null;
+  combat_power?: number | null;
   join_date?: string | null;
   notes?: string | null;
   contact?: Record<string, unknown> | null;

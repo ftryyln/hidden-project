@@ -38,7 +38,7 @@ export function CommunitySidebar() {
   return (
     <div className="space-y-6">
       <SectionCard
-        title="Join the Discord"
+        title="Join The Discord"
         description="Sync announcements, coordinate raids, and get help from fellow members."
         icon={<MessageSquare className="h-5 w-5" />}
       >

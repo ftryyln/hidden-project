@@ -22,6 +22,8 @@ function mapMember(row: Record<string, unknown>): Member {
     user_id: (row.user_id as string | null) ?? undefined,
     in_game_name: (row.in_game_name as string) ?? "",
     role_in_guild: row.role_in_guild as Member["role_in_guild"],
+    class: (row.class as string | null) ?? undefined,
+    combat_power: (row.combat_power as number | null) ?? undefined,
     join_date: (row.join_date as string | null) ?? undefined,
     contact: (row.contact as Record<string, unknown> | null) ?? undefined,
     notes: (row.notes as string | null) ?? undefined,
@@ -40,7 +42,7 @@ export async function listMembers(
   let query = supabaseAdmin
     .from("members")
     .select(
-      "id, guild_id, user_id, in_game_name, role_in_guild, join_date, contact, notes, is_active, created_at, updated_at",
+      "id, guild_id, user_id, in_game_name, role_in_guild, class, combat_power, join_date, contact, notes, is_active, created_at, updated_at",
       { count: "exact" },
     )
     .eq("guild_id", guildId)
@@ -71,6 +73,8 @@ export async function listMembers(
 export interface MemberUpsertPayload {
   in_game_name: string;
   role_in_guild: Member["role_in_guild"];
+  class?: string | null;
+  combat_power?: number | null;
   join_date?: string | null;
   notes?: string | null;
   contact?: Record<string, string | null | undefined>;
@@ -87,6 +91,8 @@ export async function createMember(
       guild_id: guildId,
       in_game_name: payload.in_game_name,
       role_in_guild: payload.role_in_guild,
+      class: payload.class ?? null,
+      combat_power: payload.combat_power ?? null,
       join_date: payload.join_date ?? null,
       notes: payload.notes ?? null,
       contact: payload.contact ?? {},
@@ -108,11 +114,15 @@ export async function updateMember(
   memberId: string,
   payload: MemberUpsertPayload,
 ): Promise<Member> {
+  console.log('Backend updateMember payload:', payload);
+
   const { data, error } = await supabaseAdmin
     .from("members")
     .update({
       in_game_name: payload.in_game_name,
       role_in_guild: payload.role_in_guild,
+      class: payload.class ?? null,
+      combat_power: payload.combat_power ?? null,
       join_date: payload.join_date ?? null,
       notes: payload.notes ?? null,
       contact: payload.contact ?? {},
@@ -122,6 +132,8 @@ export async function updateMember(
     .eq("id", memberId)
     .select("*")
     .single();
+
+  console.log('Backend updateMember result:', data);
 
   if (error) {
     console.error("Failed to update member", error);
