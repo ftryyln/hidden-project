@@ -162,4 +162,144 @@ router.get(
   }),
 );
 
+// New endpoints for Discord bot integration
+
+// Find member by Discord username
+router.get(
+  "/members/by-discord/:username",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const username = req.params.username;
+    
+    const { data, error } = await supabaseAdmin
+      .from("members")
+      .select("id, guild_id, user_id, in_game_name, role_in_guild, contact, is_active")
+      .eq("is_active", true)
+      .like("contact->>discord_username", username)
+      .single();
+    
+    if (error || !data) {
+      return res.status(404).json({
+        data: null,
+        error: "Member not found with Discord username: " + username,
+      });
+    }
+    
+    res.json({
+      data: {
+        id: data.id,
+        guildId: data.guild_id,
+        userId: data.user_id,
+        inGameName: data.in_game_name,
+        roleInGuild: data.role_in_guild,
+        discordUsername: (data.contact as any)?.discord_username,
+      },
+      error: null,
+    });
+  }),
+);
+
+// Get pending attendance entries
+router.get(
+  "/guilds/:guildId/attendance/pending",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const guildId = ensureUuid(req.params.guildId, "guildId");
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, [...VIEW_ROLES]);
+    
+    const { data, error } = await supabaseAdmin
+      .from("pending_attendance_view")
+      .select("*")
+      .eq("guild_id", guildId)
+      .order("entry_created_at", { ascending: false });
+    
+    if (error) {
+      throw new Error("Failed to fetch pending attendance: " + error.message);
+    }
+    
+    res.json({
+      data: (data || []).map((item) => ({
+        entryId: item.entry_id,
+        sessionId: item.session_id,
+        memberId: item.member_id,
+        memberName: item.member_name,
+        discordUsername: item.discord_username,
+        bossName: item.boss_name,
+        mapName: item.map_name,
+        sessionName: item.boss_name || item.map_name || "Unknown",
+        startedAt: item.session_started_at,
+        createdAt: item.entry_created_at,
+        note: item.note,
+        lootTag: item.loot_tag,
+      })),
+      error: null,
+    });
+  }),
+);
+
+// Confirm single attendance entry
+router.patch(
+  "/guilds/:guildId/attendance/entries/:entryId/confirm",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const guildId = ensureUuid(req.params.guildId, "guildId");
+    const entryId = ensureUuid(req.params.entryId, "entryId");
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, [...MANAGE_ROLES]);
+    
+    const { data, error } = await supabaseAdmin.rpc("confirm_attendance_entry", {
+      p_entry_id: entryId,
+      p_confirmed_by: req.user!.id,
+    });
+    
+    if (error) {
+      throw new Error("Failed to confirm attendance: " + error.message);
+    }
+    
+    res.json({
+      data: {
+        id: data.id,
+        confirmed: data.confirmed,
+        confirmedBy: data.confirmed_by,
+        confirmedAt: data.confirmed_at,
+      },
+      error: null,
+    });
+  }),
+);
+
+// Bulk confirm attendance entries
+router.post(
+  "/guilds/:guildId/attendance/entries/bulk-confirm",
+  requireAuth,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    const guildId = ensureUuid(req.params.guildId, "guildId");
+    await requireGuildRole(supabaseAdmin, req.user!.id, guildId, [...MANAGE_ROLES]);
+    
+    const { entryIds } = req.body;
+    if (!Array.isArray(entryIds) || entryIds.length === 0) {
+      return res.status(400).json({
+        data: null,
+        error: "entryIds must be a non-empty array",
+      });
+    }
+    
+    const { data, error } = await supabaseAdmin.rpc("bulk_confirm_attendance_entries", {
+      p_entry_ids: entryIds,
+      p_confirmed_by: req.user!.id,
+    });
+    
+    if (error) {
+      throw new Error("Failed to bulk confirm attendance: " + error.message);
+    }
+    
+    res.json({
+      data: {
+        confirmed: data?.length || 0,
+        entries: data || [],
+      },
+      error: null,
+    });
+  }),
+);
+
 export const attendanceRouter = router;

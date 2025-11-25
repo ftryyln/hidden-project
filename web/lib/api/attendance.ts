@@ -141,3 +141,57 @@ export async function fetchAttendanceHistory(
   );
   return unwrap(payload);
 }
+
+// New functions for Discord bot integration
+
+export interface PendingAttendanceEntry {
+  entryId: string;
+  sessionId: string;
+  memberId: string;
+  memberName: string;
+  discordUsername?: string;
+  bossName?: string;
+  mapName?: string;
+  sessionName: string;
+  startedAt: string;
+  createdAt: string;
+  note?: string;
+  lootTag?: string;
+}
+
+export async function fetchPendingAttendance(
+  guildId: string,
+): Promise<PendingAttendanceEntry[]> {
+  const payload = await apiClient<ApiEnvelope<PendingAttendanceEntry[]>>(
+    `/guilds/${guildId}/attendance/pending`,
+  );
+  return unwrap(payload);
+}
+
+export async function confirmAttendanceEntry(
+  guildId: string,
+  entryId: string,
+): Promise<{ id: string; confirmed: boolean; confirmedBy: string; confirmedAt: string }> {
+  const payload = await apiClient<ApiEnvelope<{ id: string; confirmed: boolean; confirmedBy: string; confirmedAt: string }>>(
+    `/guilds/${guildId}/attendance/entries/${entryId}/confirm`,
+    {
+      method: "PATCH",
+    },
+  );
+  return unwrap(payload);
+}
+
+export async function bulkConfirmAttendanceEntries(
+  guildId: string,
+  entryIds: string[],
+): Promise<{ confirmed: number; entries: any[] }> {
+  const payload = await apiClient<ApiEnvelope<{ confirmed: number; entries: any[] }>>(
+    `/guilds/${guildId}/attendance/entries/bulk-confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify({ entryIds }),
+    },
+  );
+  return unwrap(payload);
+}
+
